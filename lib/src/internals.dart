@@ -18,7 +18,7 @@ export 'utils/id_map.dart';
 export 'utils/is_parent_of.dart';
 export 'utils/logging.dart';
 export 'utils/relative_position.dart';
-export 'utils/snapshot.dart';
+export 'utils/snapshot.dart' hide readStateVector, writeStateVector;
 export 'utils/struct_set.dart';
 export 'utils/struct_store.dart';
 export 'utils/transaction.dart'
@@ -28,7 +28,7 @@ export 'utils/updates.dart';
 export 'utils/y_event.dart';
 export 'utils/delta_helpers.dart';
 export 'utils/meta.dart';
-export 'y_type.dart';
+export 'y_type.dart' hide isVisible;
 export 'structs/abstract_struct.dart';
 export 'structs/gc.dart';
 export 'structs/content.dart';

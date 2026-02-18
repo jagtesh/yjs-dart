@@ -772,3 +772,94 @@ IdSet _mergeIdSets(List<IdSet> sets) {
   }
   return result;
 }
+
+// ---------------------------------------------------------------------------
+// LazyStructReader
+// ---------------------------------------------------------------------------
+
+/// A streaming struct reader that reads one struct at a time from a decoder.
+///
+/// Mirrors: `LazyStructReader` in updates.js
+class LazyStructReader {
+  final dynamic _decoder;
+  final bool _filterSkips;
+
+  /// The current struct (null if exhausted).
+  AbstractStruct? curr;
+
+  bool _done = false;
+
+  // State for iterating through the decoder
+  int _numOfStateUpdates = 0;
+  int _stateUpdateIndex = 0;
+  int _numberOfStructs = 0;
+  int _structIndex = 0;
+  int _client = 0;
+  int _clock = 0;
+
+  LazyStructReader(this._decoder, this._filterSkips) {
+    // ignore: avoid_dynamic_calls
+    _numOfStateUpdates =
+        decoding.readVarUint(_decoder.restDecoder as decoding.Decoder);
+    _loadNextClient();
+    next(); // advance to first struct
+  }
+
+  void _loadNextClient() {
+    if (_stateUpdateIndex >= _numOfStateUpdates) {
+      _done = true;
+      return;
+    }
+    // ignore: avoid_dynamic_calls
+    _numberOfStructs =
+        decoding.readVarUint(_decoder.restDecoder as decoding.Decoder);
+    // ignore: avoid_dynamic_calls
+    _client = _decoder.readClient() as int;
+    // ignore: avoid_dynamic_calls
+    _clock = decoding.readVarUint(_decoder.restDecoder as decoding.Decoder);
+    _structIndex = 0;
+    _stateUpdateIndex++;
+  }
+
+  AbstractStruct? _readNextStruct() {
+    while (true) {
+      if (_done) return null;
+      if (_structIndex >= _numberOfStructs) {
+        _loadNextClient();
+        continue;
+      }
+      // ignore: avoid_dynamic_calls
+      final info = _decoder.readInfo() as int;
+      AbstractStruct struct;
+      if (info == 10) {
+        // Skip
+        // ignore: avoid_dynamic_calls
+        final len =
+            decoding.readVarUint(_decoder.restDecoder as decoding.Decoder);
+        struct = Skip(createID(_client, _clock), len);
+        _clock += len;
+      } else if ((0x1f & info) != 0) {
+        // Item
+        // ignore: avoid_dynamic_calls
+        final content = readItemContent(_decoder, info);
+        struct = Item(id: createID(_client, _clock), content: content);
+        _clock += content.length;
+      } else {
+        // GC
+        // ignore: avoid_dynamic_calls
+        final len = _decoder.readLen() as int;
+        struct = GC(createID(_client, _clock), len);
+        _clock += len;
+      }
+      _structIndex++;
+      if (_filterSkips && struct is Skip) continue;
+      return struct;
+    }
+  }
+
+  /// Advance to the next struct and return it.
+  AbstractStruct? next() {
+    curr = _readNextStruct();
+    return curr;
+  }
+}
