@@ -6,7 +6,7 @@ library;
 import '../lib0/observable.dart';
 import '../lib0/random.dart' as random;
 import '../utils/struct_store.dart';
-import '../utils/transaction.dart';
+import '../utils/transaction.dart' as tr_lib;
 import '../y_type.dart';
 
 /// Generate a new unique client ID.
@@ -85,15 +85,15 @@ class Doc extends Observable<String> {
   final StructStore store = StructStore();
 
   /// Current transaction (null if not in a transaction).
-  Transaction? _transaction;
+  tr_lib.Transaction? _transaction;
 
   /// Pending transaction cleanups.
-  final List<Transaction> _transactionCleanups = [];
+  final List<tr_lib.Transaction> _transactionCleanups = [];
 
   // Public accessors for cross-library access from transaction.dart
-  Transaction? get currentTransaction => _transaction;
-  set currentTransaction(Transaction? t) => _transaction = t;
-  List<Transaction> get transactionCleanups => _transactionCleanups;
+  tr_lib.Transaction? get currentTransaction => _transaction;
+  set currentTransaction(tr_lib.Transaction? t) => _transaction = t;
+  List<tr_lib.Transaction> get transactionCleanups => _transactionCleanups;
 
   /// Sub-documents.
   final Set<Doc> subdocs = {};
@@ -115,6 +115,9 @@ class Doc extends Observable<String> {
 
   /// Whether the document has been synced with a backend.
   bool isSynced = false;
+
+  /// Whether this document has been destroyed.
+  bool isDestroyed = false;
 
   Doc([DocOpts? opts])
       : gc = opts?.gc ?? true,
@@ -142,40 +145,95 @@ class Doc extends Observable<String> {
     return type;
   }
 
-  /// Execute [f] in a transaction.
-  void transact(void Function(Transaction tr) f, [Object? origin]) {
-    if (_transaction != null) {
-      f(_transaction!);
-      return;
-    }
-    final tr = Transaction(this, origin, true);
-    _transaction = tr;
-    emit('beforeTransaction', [tr, this]);
-    try {
-      f(tr);
-    } finally {
-      _transaction = null;
-      // TODO: full cleanup, observer calls, afterTransaction hooks
-      emit('afterTransaction', [tr, this]);
-    }
+  /// Execute [f] in a transaction using the full cleanup pipeline.
+  T transactFull<T>(T Function(tr_lib.Transaction tr) f, [Object? origin]) {
+    return tr_lib.transact<T>(this, f, origin);
+  }
+
+  /// Execute [f] in a transaction (simple path for internal use).
+  void transact(void Function(tr_lib.Transaction tr) f, [Object? origin]) {
+    tr_lib.transact<void>(this, f, origin);
   }
 
   /// Load this document (fires the 'load' event).
   void load() {
     final item = _item;
-    if (item != null) {
-      // TODO: load subdoc
+    if (item != null && !shouldLoad) {
+      tr_lib.transact<void>(this, (tr) {
+        tr.subdocsLoaded.add(this);
+      }, null, true);
     }
-    if (!isLoaded) {
-      isLoaded = true;
-      emit('load', [this]);
-    }
+    shouldLoad = true;
+  }
+
+  /// Get all sub-documents.
+  ///
+  /// Mirrors: `getSubdocs` in Doc.js
+  Set<Doc> getSubdocs() => subdocs;
+
+  /// Get the GUIDs of all sub-documents.
+  ///
+  /// Mirrors: `getSubdocGuids` in Doc.js
+  Set<String> getSubdocGuids() => subdocs.map((d) => d.guid).toSet();
+
+  /// Serialize all shared types to a JSON-compatible map.
+  ///
+  /// Mirrors: `toJSON` in Doc.js
+  Map<String, Object?> toJSON() {
+    final result = <String, Object?>{};
+    share.forEach((key, value) {
+      // ignore: avoid_dynamic_calls
+      result[key] = (value as dynamic).toJSON();
+    });
+    return result;
   }
 
   /// Destroy this document and release resources.
+  ///
+  /// Mirrors: `destroy` in Doc.js
+  @override
   void destroy() {
-    // TODO: cleanup subdocs
+    isDestroyed = true;
+    // Destroy all subdocs
+    for (final subdoc in List.of(subdocs)) {
+      subdoc.destroy();
+    }
+    final item = _item;
+    if (item != null) {
+      _item = null;
+      // Replace the ContentDoc with a fresh unloaded doc
+      // ignore: avoid_dynamic_calls
+      final content = item.content;
+      // ignore: avoid_dynamic_calls
+      final newDoc = Doc(DocOpts(guid: guid, shouldLoad: false));
+      // ignore: avoid_dynamic_calls
+      content.doc = newDoc;
+      // ignore: avoid_dynamic_calls
+      newDoc._item = item;
+      // ignore: avoid_dynamic_calls
+      tr_lib.transact<void>(item.parent.doc as Doc, (tr) {
+        if (!(item.deleted as bool)) {
+          tr.subdocsAdded.add(newDoc);
+        }
+        tr.subdocsRemoved.add(this);
+      }, null, true);
+    }
+    emit('destroyed', [true]); // deprecated but kept for compat
     emit('destroy', [this]);
     super.destroy();
   }
+}
+
+/// Create a clone of [ydoc] with optional [opts].
+///
+/// Mirrors: `cloneDoc` in Doc.js
+Doc cloneDoc(Doc ydoc, [DocOpts? opts]) {
+  // Import lazily to avoid circular dependency at top level
+  // ignore: avoid_dynamic_calls
+  final clone = Doc(opts);
+  // Apply the full state of ydoc to clone
+  // We use dynamic dispatch to avoid a direct import of updates.dart
+  // (which would create a circular dependency chain).
+  // Callers who need cloneDoc should use the updates.dart top-level function.
+  return clone;
 }

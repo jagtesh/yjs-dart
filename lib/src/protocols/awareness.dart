@@ -3,120 +3,277 @@
 /// Mirrors: y-protocols/awareness.js (v1.0.5)
 library;
 
+import 'dart:convert';
 import 'dart:typed_data';
 
-import '../lib0/observable.dart';
 import '../lib0/decoding.dart' as decoding;
 import '../lib0/encoding.dart' as encoding;
+import '../lib0/observable.dart';
 import '../utils/doc.dart';
 
-/// Awareness state for a single client.
-typedef AwarenessState = Map<String, Object?>;
+/// How long (ms) before an awareness state is considered outdated.
+const int outdatedTimeout = 30000;
 
-/// Awareness protocol for sharing user presence information.
+/// Metadata for a single client's awareness state.
+typedef MetaClientState = ({int clock, int lastUpdated});
+
+/// The Awareness class implements a simple shared state protocol for
+/// non-persistent data like cursor positions, usernames, etc.
 ///
 /// Mirrors: `Awareness` in awareness.js
 class Awareness extends Observable<String> {
   /// The document this awareness is associated with.
   final Doc doc;
 
-  /// Map from client ID to {clock, state}.
-  final Map<int, ({int clock, AwarenessState? state})> states = {};
+  /// Client ID (mirrors doc.clientID).
+  int clientID;
 
-  /// The local state.
-  AwarenessState? _localState = {};
+  /// Map from client ID to state object.
+  final Map<int, Map<String, Object?>> states = {};
 
-  Awareness(this.doc) {
-    states[doc.clientID] = (clock: 0, state: _localState);
+  /// Map from client ID to metadata (clock, lastUpdated).
+  final Map<int, MetaClientState> meta = {};
+
+  /// Interval timer for pruning outdated states.
+  Object? _checkInterval;
+
+  Awareness(this.doc) : clientID = doc.clientID {
+    // Register cleanup on doc destroy
+    doc.on('destroy', (_) => destroy());
+    // Set initial local state
+    setLocalState({});
+    // Start the outdated-state pruning interval
+    // Note: In Dart we use a periodic Timer instead of setInterval
+    // We skip the timer in this implementation to avoid dart:async dependency
+    // in the core library — callers can implement their own pruning.
   }
 
-  /// Get the local awareness state.
-  AwarenessState? get localState => _localState;
-
-  /// Set the local awareness state.
-  set localState(AwarenessState? state) {
-    final prevState = _localState;
-    _localState = state;
-    final entry = states[doc.clientID];
-    final clock = (entry?.clock ?? 0) + 1;
-    states[doc.clientID] = (clock: clock, state: state);
-    emit('change', [
-      {
-        'added': <int>[],
-        'updated': [doc.clientID],
-        'removed': <int>[],
-      },
-      'local',
-    ]);
-    emit('update', [
-      {
-        'added': <int>[],
-        'updated': [doc.clientID],
-        'removed': <int>[],
-      },
-      'local',
-    ]);
-  }
-
-  /// Get all current states.
-  Map<int, AwarenessState?> getStates() {
-    return Map.fromEntries(
-      states.entries.map((e) => MapEntry(e.key, e.value.state)),
-    );
-  }
-
-  /// Destroy this awareness instance.
   @override
   void destroy() {
     emit('destroy', [this]);
+    setLocalState(null);
     super.destroy();
   }
-}
 
-/// Encode an awareness update for the given [clientIds].
-///
-/// Mirrors: `encodeAwarenessUpdate` in awareness.js
-encoding.Encoder encodeAwarenessUpdate(
-  Awareness awareness,
-  List<int> clientIds,
-) {
-  final encoder = encoding.createEncoder();
-  encoding.writeVarUint(encoder, clientIds.length);
-  for (final clientId in clientIds) {
-    final entry = awareness.states[clientId];
-    encoding.writeVarUint(encoder, clientId);
-    encoding.writeVarUint(encoder, entry?.clock ?? 0);
-    if (entry?.state == null) {
-      encoding.writeVarString(encoder, 'null');
+  /// Get the local awareness state (null if offline).
+  ///
+  /// Mirrors: `getLocalState` in awareness.js
+  Map<String, Object?>? getLocalState() {
+    return states[clientID];
+  }
+
+  /// Set the local awareness state.
+  ///
+  /// Mirrors: `setLocalState` in awareness.js
+  void setLocalState(Map<String, Object?>? state) {
+    final currLocalMeta = meta[clientID];
+    final clock = currLocalMeta == null ? 0 : currLocalMeta.clock + 1;
+    final prevState = states[clientID];
+    if (state == null) {
+      states.remove(clientID);
     } else {
-      // Simple JSON-like encoding
-      encoding.writeVarString(encoder, _encodeState(entry!.state!));
+      states[clientID] = state;
+    }
+    meta[clientID] = (
+      clock: clock,
+      lastUpdated: DateTime.now().millisecondsSinceEpoch,
+    );
+    final added = <int>[];
+    final updated = <int>[];
+    final filteredUpdated = <int>[];
+    final removed = <int>[];
+    if (state == null) {
+      removed.add(clientID);
+    } else if (prevState == null) {
+      added.add(clientID);
+    } else {
+      updated.add(clientID);
+      if (!_equalityDeep(prevState, state)) {
+        filteredUpdated.add(clientID);
+      }
+    }
+    if (added.isNotEmpty || filteredUpdated.isNotEmpty || removed.isNotEmpty) {
+      emit('change', [
+        {'added': added, 'updated': filteredUpdated, 'removed': removed},
+        'local',
+      ]);
+    }
+    emit('update', [
+      {'added': added, 'updated': updated, 'removed': removed},
+      'local',
+    ]);
+  }
+
+  /// Set a single field in the local awareness state.
+  ///
+  /// Mirrors: `setLocalStateField` in awareness.js
+  void setLocalStateField(String field, Object? value) {
+    final state = getLocalState();
+    if (state != null) {
+      setLocalState({...state, field: value});
     }
   }
-  return encoder;
+
+  /// Get all current awareness states.
+  ///
+  /// Mirrors: `getStates` in awareness.js
+  Map<int, Map<String, Object?>> getStates() => states;
 }
 
-String _encodeState(AwarenessState state) {
-  final parts = state.entries.map((e) => '"${e.key}":${_encodeValue(e.value)}');
-  return '{${parts.join(',')}}';
+/// Mark remote clients as inactive and remove them from the active list.
+///
+/// Mirrors: `removeAwarenessStates` in awareness.js
+void removeAwarenessStates(
+    Awareness awareness, List<int> clients, Object? origin) {
+  final removed = <int>[];
+  for (final clientID in clients) {
+    if (awareness.states.containsKey(clientID)) {
+      awareness.states.remove(clientID);
+      if (clientID == awareness.clientID) {
+        final curMeta = awareness.meta[clientID]!;
+        awareness.meta[clientID] = (
+          clock: curMeta.clock + 1,
+          lastUpdated: DateTime.now().millisecondsSinceEpoch,
+        );
+      }
+      removed.add(clientID);
+    }
+  }
+  if (removed.isNotEmpty) {
+    awareness.emit('change', [
+      {'added': <int>[], 'updated': <int>[], 'removed': removed},
+      origin,
+    ]);
+    awareness.emit('update', [
+      {'added': <int>[], 'updated': <int>[], 'removed': removed},
+      origin,
+    ]);
+  }
 }
 
-String _encodeValue(Object? value) {
-  if (value == null) return 'null';
-  if (value is String) return '"$value"';
-  if (value is bool) return value.toString();
-  if (value is num) return value.toString();
-  return '"$value"';
+/// Encode an awareness update for the given [clients].
+///
+/// Mirrors: `encodeAwarenessUpdate` in awareness.js
+Uint8List encodeAwarenessUpdate(
+  Awareness awareness,
+  List<int> clients, [
+  Map<int, Map<String, Object?>>? states,
+]) {
+  states ??= awareness.states;
+  final encoder = encoding.createEncoder();
+  encoding.writeVarUint(encoder, clients.length);
+  for (final clientID in clients) {
+    final state = states[clientID];
+    final clock = awareness.meta[clientID]?.clock ?? 0;
+    encoding.writeVarUint(encoder, clientID);
+    encoding.writeVarUint(encoder, clock);
+    encoding.writeVarString(encoder, jsonEncode(state));
+  }
+  return encoding.toUint8Array(encoder);
 }
 
-/// Apply an awareness update.
+/// Modify an awareness update by transforming each state with [modify].
+///
+/// Mirrors: `modifyAwarenessUpdate` in awareness.js
+Uint8List modifyAwarenessUpdate(
+    Uint8List update, Map<String, Object?> Function(Map<String, Object?>) modify) {
+  final decoder = decoding.createDecoder(update);
+  final encoder = encoding.createEncoder();
+  final len = decoding.readVarUint(decoder);
+  encoding.writeVarUint(encoder, len);
+  for (var i = 0; i < len; i++) {
+    final clientID = decoding.readVarUint(decoder);
+    final clock = decoding.readVarUint(decoder);
+    final stateStr = decoding.readVarString(decoder);
+    final state = (jsonDecode(stateStr) as Map).cast<String, Object?>();
+    final modifiedState = modify(state);
+    encoding.writeVarUint(encoder, clientID);
+    encoding.writeVarUint(encoder, clock);
+    encoding.writeVarString(encoder, jsonEncode(modifiedState));
+  }
+  return encoding.toUint8Array(encoder);
+}
+
+/// Apply an awareness update to [awareness].
 ///
 /// Mirrors: `applyAwarenessUpdate` in awareness.js
 void applyAwarenessUpdate(
-  Awareness awareness,
-  List<int> update,
-  Object? origin,
-) {
-  final decoder = decoding.createDecoder(Uint8List.fromList(update));
-  // TODO: implement full awareness update decoding
+    Awareness awareness, Uint8List update, Object? origin) {
+  final decoder = decoding.createDecoder(update);
+  final timestamp = DateTime.now().millisecondsSinceEpoch;
+  final added = <int>[];
+  final updated = <int>[];
+  final filteredUpdated = <int>[];
+  final removed = <int>[];
+  final len = decoding.readVarUint(decoder);
+  for (var i = 0; i < len; i++) {
+    final clientID = decoding.readVarUint(decoder);
+    var clock = decoding.readVarUint(decoder);
+    final stateStr = decoding.readVarString(decoder);
+    final state = stateStr == 'null'
+        ? null
+        : (jsonDecode(stateStr) as Map).cast<String, Object?>();
+    final clientMeta = awareness.meta[clientID];
+    final prevState = awareness.states[clientID];
+    final currClock = clientMeta?.clock ?? 0;
+    if (currClock < clock ||
+        (currClock == clock &&
+            state == null &&
+            awareness.states.containsKey(clientID))) {
+      if (state == null) {
+        // Never let a remote client remove our local state
+        if (clientID == awareness.clientID &&
+            awareness.getLocalState() != null) {
+          clock++;
+        } else {
+          awareness.states.remove(clientID);
+        }
+      } else {
+        awareness.states[clientID] = state;
+      }
+      awareness.meta[clientID] = (clock: clock, lastUpdated: timestamp);
+      if (clientMeta == null && state != null) {
+        added.add(clientID);
+      } else if (clientMeta != null && state == null) {
+        removed.add(clientID);
+      } else if (state != null) {
+        if (!_equalityDeep(state, prevState)) {
+          filteredUpdated.add(clientID);
+        }
+        updated.add(clientID);
+      }
+    }
+  }
+  if (added.isNotEmpty || filteredUpdated.isNotEmpty || removed.isNotEmpty) {
+    awareness.emit('change', [
+      {'added': added, 'updated': filteredUpdated, 'removed': removed},
+      origin,
+    ]);
+  }
+  if (added.isNotEmpty || updated.isNotEmpty || removed.isNotEmpty) {
+    awareness.emit('update', [
+      {'added': added, 'updated': updated, 'removed': removed},
+      origin,
+    ]);
+  }
+}
+
+/// Deep equality check for awareness states.
+bool _equalityDeep(Object? a, Object? b) {
+  if (a == b) return true;
+  if (a is Map && b is Map) {
+    if (a.length != b.length) return false;
+    for (final key in a.keys) {
+      if (!b.containsKey(key) || !_equalityDeep(a[key], b[key])) return false;
+    }
+    return true;
+  }
+  if (a is List && b is List) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (!_equalityDeep(a[i], b[i])) return false;
+    }
+    return true;
+  }
+  return false;
 }

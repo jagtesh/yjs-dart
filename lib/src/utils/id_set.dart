@@ -546,17 +546,22 @@ void writeIdSet(dynamic encoder, IdSet idSet) {
 /// Decode an IdSet from [decoder].
 ///
 /// Mirrors: `readIdSet` in IdSet.js
-IdSet readIdSet(IdSetDecoderV1 decoder) {
+IdSet readIdSet(dynamic decoder) {
   final ds = IdSet();
-  final numClients = decoding.readVarUint(decoder.restDecoder);
+  // ignore: avoid_dynamic_calls
+  final numClients = decoding.readVarUint(decoder.restDecoder as decoding.Decoder);
   for (var i = 0; i < numClients; i++) {
+    // ignore: avoid_dynamic_calls
     decoder.resetDsCurVal();
-    final client = decoding.readVarUint(decoder.restDecoder);
-    final numberOfDeletes = decoding.readVarUint(decoder.restDecoder);
+    // ignore: avoid_dynamic_calls
+    final client = decoding.readVarUint(decoder.restDecoder as decoding.Decoder);
+    // ignore: avoid_dynamic_calls
+    final numberOfDeletes = decoding.readVarUint(decoder.restDecoder as decoding.Decoder);
     if (numberOfDeletes > 0) {
       final dsRanges = <IdRange>[];
       for (var j = 0; j < numberOfDeletes; j++) {
-        dsRanges.add(IdRange(decoder.readDsClock(), decoder.readDsLen()));
+        // ignore: avoid_dynamic_calls
+        dsRanges.add(IdRange(decoder.readDsClock() as int, decoder.readDsLen() as int));
       }
       ds.clients[client] = IdRanges(dsRanges);
     }
