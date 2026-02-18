@@ -3,7 +3,12 @@
 /// Mirrors: yjs/src/internals.js (v14.0.0-22)
 library;
 
-export 'utils/id_set.dart';
+export 'utils/id_set.dart'
+    hide
+        createDeleteSetFromStructStore,
+        createInsertSetFromStructStore,
+        findIndexSS,
+        iterateStructsByIdSet;
 export 'utils/doc.dart';
 export 'utils/update_decoder.dart';
 export 'utils/update_encoder.dart';

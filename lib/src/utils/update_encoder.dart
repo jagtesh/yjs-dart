@@ -132,6 +132,7 @@ class StringEncoder {
 
 /// Abstract base for update encoders.
 abstract class AbstractUpdateEncoder {
+  encoding.Encoder get restEncoder;
   Uint8List toUint8Array();
   void resetIdSetCurVal();
   void writeIdSetClock(int clock);
