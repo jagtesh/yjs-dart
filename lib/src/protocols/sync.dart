@@ -3,9 +3,9 @@
 /// Mirrors: y-protocols/sync.js (v1.0.5)
 library;
 
-import '../../lib0/encoding.dart' as encoding;
-import '../../lib0/decoding.dart' as decoding;
-import '../../utils/doc.dart';
+import '../lib0/encoding.dart' as encoding;
+import '../lib0/decoding.dart' as decoding;
+import '../utils/doc.dart';
 
 /// Message type constants.
 const int messageSyncStep1 = 0;

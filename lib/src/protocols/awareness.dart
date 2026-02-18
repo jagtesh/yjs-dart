@@ -3,10 +3,12 @@
 /// Mirrors: y-protocols/awareness.js (v1.0.5)
 library;
 
-import '../../lib0/observable.dart';
-import '../../lib0/decoding.dart' as decoding;
-import '../../lib0/encoding.dart' as encoding;
-import '../../utils/doc.dart';
+import 'dart:typed_data';
+
+import '../lib0/observable.dart';
+import '../lib0/decoding.dart' as decoding;
+import '../lib0/encoding.dart' as encoding;
+import '../utils/doc.dart';
 
 /// Awareness state for a single client.
 typedef AwarenessState = Map<String, Object?>;
@@ -115,11 +117,6 @@ void applyAwarenessUpdate(
   List<int> update,
   Object? origin,
 ) {
-  final decoder = decoding.createDecoder(
-    update is List<int> ? List<int>.from(update).fold<List<int>>(
-      [],
-      (acc, b) => acc..add(b),
-    ).fold<List<int>>([], (a, b) => a..add(b)) : [],
-  );
+  final decoder = decoding.createDecoder(Uint8List.fromList(update));
   // TODO: implement full awareness update decoding
 }

@@ -3,6 +3,8 @@
 /// Mirrors: yjs/src/utils/StructStore.js (v14.0.0-22)
 library;
 
+import 'dart:typed_data';
+
 import '../structs/abstract_struct.dart';
 import '../structs/gc.dart';
 import '../structs/skip.dart';
@@ -17,10 +19,10 @@ class StructStore {
   final Map<int, List<AbstractStruct>> clients = {};
 
   /// Pending structs waiting for missing dependencies.
-  ({Map<int, int> missing, List<int> update})? pendingStructs;
+  ({Map<int, int> missing, Uint8List update})? pendingStructs;
 
   /// Pending delete set update.
-  List<int>? pendingDs;
+  Uint8List? pendingDs;
 
   /// Skip ranges (gaps in the struct store).
   final IdSet skips = createIdSet();
@@ -216,6 +218,27 @@ void replaceStruct(dynamic transaction, AbstractStruct struct, AbstractStruct ne
   final store = transaction.doc.store as StructStore;
   final structs = store.clients[struct.id.client]!;
   structs[findIndexSS(structs, struct.id.clock)] = newStruct;
+}
+
+/// Find the index of the struct at [clock] in [structs], splitting if needed.
+///
+/// Mirrors: `findIndexCleanStart` in StructStore.js
+int findIndexCleanStart(
+    dynamic transaction, List<AbstractStruct> structs, int clock) {
+  final index = findIndexSS(structs, clock);
+  final struct = structs[index];
+  if (struct.id.clock < clock) {
+    final diff = clock - struct.id.clock;
+    // ignore: avoid_dynamic_calls
+    final right = struct.splice(diff);
+    structs.insert(index + 1, right);
+    if (transaction != null) {
+      // ignore: avoid_dynamic_calls
+      (transaction as dynamic).mergeStructs.add(right);
+    }
+    return index + 1;
+  }
+  return index;
 }
 
 // Marker interface for structs that can be split

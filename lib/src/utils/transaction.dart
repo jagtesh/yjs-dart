@@ -60,7 +60,7 @@ class Transaction {
   final Map<Object, Object?> meta = {};
 
   /// Whether this change originates from this doc.
-  final bool local;
+  bool local;
 
   /// Sub-documents added in this transaction.
   final Set<dynamic> subdocsAdded = {};
@@ -622,7 +622,7 @@ void _cleanupTransactions(List<Transaction> transactionCleanups, int i) {
 
     // Emit update events
     // ignore: avoid_dynamic_calls
-    if ((doc._observers as Map).containsKey('update')) {
+    if (doc.hasObserver('update') as bool) {
       final encoder = UpdateEncoderV1();
       final hasContent = writeUpdateMessageFromTransaction(encoder, transaction);
       if (hasContent) {
@@ -632,7 +632,7 @@ void _cleanupTransactions(List<Transaction> transactionCleanups, int i) {
       }
     }
     // ignore: avoid_dynamic_calls
-    if ((doc._observers as Map).containsKey('updateV2')) {
+    if (doc.hasObserver('updateV2') as bool) {
       final encoder = UpdateEncoderV2();
       final hasContent = writeUpdateMessageFromTransaction(encoder, transaction);
       if (hasContent) {
@@ -682,7 +682,7 @@ void _cleanupTransactions(List<Transaction> transactionCleanups, int i) {
 
     if (transactionCleanups.length <= i + 1) {
       // ignore: avoid_dynamic_calls
-      doc._transactionCleanups = <Transaction>[];
+      doc.transactionCleanups.clear();
       // ignore: avoid_dynamic_calls
       doc.emit('afterAllTransactions', [doc, transactionCleanups]);
     } else {
@@ -714,32 +714,32 @@ T transact<T>(dynamic doc, T Function(Transaction) f,
     [Object? origin, bool local = true]) {
   // ignore: avoid_dynamic_calls
   final transactionCleanups =
-      doc._transactionCleanups as List<Transaction>;
+      doc.transactionCleanups as List<Transaction>;
   var initialCall = false;
   T? result;
   // ignore: avoid_dynamic_calls
-  if (doc._transaction == null) {
+  if (doc.currentTransaction == null) {
     initialCall = true;
     // ignore: avoid_dynamic_calls
-    doc._transaction = Transaction(doc, origin, local);
-    transactionCleanups.add(doc._transaction as Transaction);
+    doc.currentTransaction = Transaction(doc, origin, local);
+    transactionCleanups.add(doc.currentTransaction as Transaction);
     if (transactionCleanups.length == 1) {
       // ignore: avoid_dynamic_calls
       doc.emit('beforeAllTransactions', [doc]);
     }
     // ignore: avoid_dynamic_calls
-    doc.emit('beforeTransaction', [doc._transaction, doc]);
+    doc.emit('beforeTransaction', [doc.currentTransaction, doc]);
   }
   try {
     // ignore: avoid_dynamic_calls
-    result = f(doc._transaction as Transaction);
+    result = f(doc.currentTransaction as Transaction);
   } finally {
     if (initialCall) {
       // ignore: avoid_dynamic_calls
       final finishCleanup =
-          doc._transaction == transactionCleanups[0];
+          doc.currentTransaction == transactionCleanups[0];
       // ignore: avoid_dynamic_calls
-      doc._transaction = null;
+      doc.currentTransaction = null;
       if (finishCleanup) {
         _cleanupTransactions(transactionCleanups, 0);
       }

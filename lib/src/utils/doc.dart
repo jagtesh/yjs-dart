@@ -90,6 +90,11 @@ class Doc extends Observable<String> {
   /// Pending transaction cleanups.
   final List<Transaction> _transactionCleanups = [];
 
+  // Public accessors for cross-library access from transaction.dart
+  Transaction? get currentTransaction => _transaction;
+  set currentTransaction(Transaction? t) => _transaction = t;
+  List<Transaction> get transactionCleanups => _transactionCleanups;
+
   /// Sub-documents.
   final Set<Doc> subdocs = {};
 

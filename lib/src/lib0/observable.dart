@@ -46,6 +46,12 @@ class Observable<EventName> {
     }
   }
 
+  /// Check if there are any listeners for [eventName].
+  bool hasObserver(EventName eventName) {
+    final list = _listeners[eventName];
+    return list != null && list.isNotEmpty;
+  }
+
   /// Remove all listeners.
   void destroy() {
     _listeners.clear();

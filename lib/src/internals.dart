@@ -22,7 +22,7 @@ export 'utils/snapshot.dart';
 export 'utils/struct_set.dart';
 export 'utils/struct_store.dart';
 export 'utils/transaction.dart'
-    hide callEventHandlerListeners, generateNewClientId;
+    hide callEventHandlerListeners, generateNewClientId, writeClientsStructs;
 export 'utils/undo_manager.dart';
 export 'utils/updates.dart';
 export 'utils/y_event.dart';

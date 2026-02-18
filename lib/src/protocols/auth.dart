@@ -3,8 +3,8 @@
 /// Mirrors: y-protocols/auth.js (v1.0.5)
 library;
 
-import '../../lib0/encoding.dart' as encoding;
-import '../../lib0/decoding.dart' as decoding;
+import '../lib0/encoding.dart' as encoding;
+import '../lib0/decoding.dart' as decoding;
 
 /// Auth message type constants.
 const int messagePermissionDenied = 0;

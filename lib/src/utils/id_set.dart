@@ -519,19 +519,25 @@ IdSet createInsertSetFromStructStore(dynamic store, bool filterDeleted) {
 /// Encode [idSet] to [encoder].
 ///
 /// Mirrors: `writeIdSet` in IdSet.js
-void writeIdSet(AbstractUpdateEncoder encoder, IdSet idSet) {
-  encoding.writeVarUint(encoder.restEncoder, idSet.clients.length);
+void writeIdSet(dynamic encoder, IdSet idSet) {
+  // ignore: avoid_dynamic_calls
+  encoding.writeVarUint(encoder.restEncoder as encoding.Encoder, idSet.clients.length);
   // Write in deterministic order (descending client id)
   final entries = idSet.clients.entries.toList()
     ..sort((a, b) => b.key - a.key);
   for (final entry in entries) {
     final client = entry.key;
     final idRanges = entry.value.getIds();
+    // ignore: avoid_dynamic_calls
     encoder.resetIdSetCurVal();
-    encoding.writeVarUint(encoder.restEncoder, client);
-    encoding.writeVarUint(encoder.restEncoder, idRanges.length);
+    // ignore: avoid_dynamic_calls
+    encoding.writeVarUint(encoder.restEncoder as encoding.Encoder, client);
+    // ignore: avoid_dynamic_calls
+    encoding.writeVarUint(encoder.restEncoder as encoding.Encoder, idRanges.length);
     for (final item in idRanges) {
+      // ignore: avoid_dynamic_calls
       encoder.writeIdSetClock(item.clock);
+      // ignore: avoid_dynamic_calls
       encoder.writeIdSetLen(item.len);
     }
   }
@@ -563,23 +569,29 @@ IdSet readIdSet(IdSetDecoderV1 decoder) {
 ///
 /// Mirrors: `readAndApplyDeleteSet` in IdSet.js
 Uint8List? readAndApplyDeleteSet(
-  IdSetDecoderV1 decoder,
+  dynamic decoder,
   dynamic transaction,
   dynamic store,
 ) {
   final unappliedDS = IdSet();
-  final numClients = decoding.readVarUint(decoder.restDecoder);
+  // ignore: avoid_dynamic_calls
+  final numClients = decoding.readVarUint(decoder.restDecoder as decoding.Decoder);
   for (var i = 0; i < numClients; i++) {
+    // ignore: avoid_dynamic_calls
     decoder.resetDsCurVal();
-    final client = decoding.readVarUint(decoder.restDecoder);
-    final numberOfDeletes = decoding.readVarUint(decoder.restDecoder);
+    // ignore: avoid_dynamic_calls
+    final client = decoding.readVarUint(decoder.restDecoder as decoding.Decoder);
+    // ignore: avoid_dynamic_calls
+    final numberOfDeletes = decoding.readVarUint(decoder.restDecoder as decoding.Decoder);
     // ignore: avoid_dynamic_calls
     final structs = (store.clients[client] ?? []) as List<AbstractStruct>;
     // ignore: avoid_dynamic_calls
     final state = store.getState(client) as int;
     for (var j = 0; j < numberOfDeletes; j++) {
-      final clock = decoder.readDsClock();
-      final clockEnd = clock + decoder.readDsLen();
+      // ignore: avoid_dynamic_calls
+      final clock = decoder.readDsClock() as int;
+      // ignore: avoid_dynamic_calls
+      final clockEnd = clock + (decoder.readDsLen() as int);
       if (clock < state) {
         if (state < clockEnd) {
           addToIdSet(unappliedDS, client, state, clockEnd - state);
