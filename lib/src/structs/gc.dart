@@ -5,7 +5,7 @@ library;
 
 import '../structs/abstract_struct.dart';
 import '../utils/id.dart';
-import '../utils/update_encoder.dart';
+import '../utils/id_set.dart';
 import '../utils/transaction.dart';
 
 /// Reference number for GC structs in the binary encoding.
@@ -30,32 +30,29 @@ class GC extends AbstractStruct {
   }
 
   @override
-  void integrate(Transaction transaction, int offset) {
+  void integrate(dynamic transaction, int offset) {
     if (offset > 0) {
-      // Note: ID is immutable in Dart, so we create a new GC with adjusted id
       final newId = createID(id.client, id.clock + offset);
       final adjusted = GC(newId, length - offset);
-      adjusted._integrateInto(transaction);
+      adjusted._integrateInto(transaction as Transaction);
       return;
     }
-    _integrateInto(transaction);
+    _integrateInto(transaction as Transaction);
   }
 
   void _integrateInto(Transaction transaction) {
-    transaction.deleteSet.addToIdSet(id.client, id.clock, length);
-    transaction.insertSet.addStructToIdSet(this);
+    addToIdSet(transaction.deleteSet, id.client, id.clock, length);
+    addToIdSet(transaction.insertSet, id.client, id.clock, length);
+    // ignore: avoid_dynamic_calls
     transaction.doc.store.addStruct(this);
   }
 
   @override
-  void write(AbstractUpdateEncoder encoder, int offset, int encodingRef) {
-    if (encoder is UpdateEncoderV1) {
-      encoder.writeInfo(structGCRefNumber);
-      encoder.writeLen(length - offset - encodingRef);
-    } else if (encoder is UpdateEncoderV2) {
-      encoder.writeInfo(structGCRefNumber);
-      encoder.writeLen(length - offset - encodingRef);
-    }
+  void write(dynamic encoder, int offset, [int encodingRef = 0]) {
+    // ignore: avoid_dynamic_calls
+    encoder.writeInfo(structGCRefNumber);
+    // ignore: avoid_dynamic_calls
+    encoder.writeLen(length - offset);
   }
 
   @override

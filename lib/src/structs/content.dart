@@ -5,10 +5,11 @@
 /// the AbstractContent interface from item.dart.
 library;
 
+import 'dart:convert';
 import 'dart:typed_data';
 import '../structs/item.dart';
+import '../utils/id_set.dart' show addToIdSet;
 import '../utils/transaction.dart';
-import '../utils/update_encoder.dart';
 
 // ─── ContentAny ──────────────────────────────────────────────────────────────
 
@@ -18,7 +19,7 @@ const int contentAnyRefNumber = 8;
 ///
 /// Mirrors: `ContentAny` in ContentAny.js
 class ContentAny implements AbstractContent {
-  final List<Object?> arr;
+  List<Object?> arr;
 
   ContentAny(this.arr);
 
@@ -26,16 +27,27 @@ class ContentAny implements AbstractContent {
   int get length => arr.length;
 
   @override
-  bool get countable => true;
-
-  @override
-  bool get isDeleted => false;
+  bool isCountable() => true;
 
   @override
   List<Object?> getContent() => arr;
 
   @override
   ContentAny copy() => ContentAny(List.of(arr));
+
+  @override
+  ContentAny splice(int offset) {
+    final right = ContentAny(arr.sublist(offset));
+    arr = arr.sublist(0, offset);
+    return right;
+  }
+
+  @override
+  bool mergeWith(AbstractContent right) {
+    if (right is! ContentAny) return false;
+    arr.addAll(right.arr);
+    return true;
+  }
 
   @override
   void integrate(Transaction transaction, Item item) {}
@@ -47,23 +59,30 @@ class ContentAny implements AbstractContent {
   void gc(dynamic store) {}
 
   @override
-  void write(AbstractUpdateEncoder encoder, int offset) {
+  void write(dynamic encoder, int offset) {
     final len = arr.length - offset;
-    if (encoder is UpdateEncoderV1) {
-      encoder.writeLen(len);
-      for (var i = offset; i < arr.length; i++) {
-        encoder.writeAny(arr[i]);
-      }
-    } else if (encoder is UpdateEncoderV2) {
-      encoder.writeLen(len);
-      for (var i = offset; i < arr.length; i++) {
-        encoder.writeAny(arr[i]);
-      }
+    // ignore: avoid_dynamic_calls
+    encoder.writeLen(len);
+    for (var i = offset; i < arr.length; i++) {
+      // ignore: avoid_dynamic_calls
+      encoder.writeAny(arr[i]);
     }
   }
 
   @override
   int getRef() => contentAnyRefNumber;
+}
+
+/// Read ContentAny from [decoder].
+ContentAny readContentAny(dynamic decoder) {
+  // ignore: avoid_dynamic_calls
+  final len = decoder.readLen() as int;
+  final arr = <Object?>[];
+  for (var i = 0; i < len; i++) {
+    // ignore: avoid_dynamic_calls
+    arr.add(decoder.readAny());
+  }
+  return ContentAny(arr);
 }
 
 // ─── ContentBinary ────────────────────────────────────────────────────────────
@@ -82,16 +101,19 @@ class ContentBinary implements AbstractContent {
   int get length => 1;
 
   @override
-  bool get countable => true;
-
-  @override
-  bool get isDeleted => false;
+  bool isCountable() => true;
 
   @override
   List<Object?> getContent() => [content];
 
   @override
   ContentBinary copy() => ContentBinary(Uint8List.fromList(content));
+
+  @override
+  AbstractContent splice(int offset) => throw StateError('ContentBinary cannot be spliced');
+
+  @override
+  bool mergeWith(AbstractContent right) => false;
 
   @override
   void integrate(Transaction transaction, Item item) {}
@@ -103,16 +125,19 @@ class ContentBinary implements AbstractContent {
   void gc(dynamic store) {}
 
   @override
-  void write(AbstractUpdateEncoder encoder, int offset) {
-    if (encoder is UpdateEncoderV1) {
-      encoder.writeBuf(content);
-    } else if (encoder is UpdateEncoderV2) {
-      encoder.writeBuf(content);
-    }
+  void write(dynamic encoder, int offset) {
+    // ignore: avoid_dynamic_calls
+    encoder.writeBuf(content);
   }
 
   @override
   int getRef() => contentBinaryRefNumber;
+}
+
+/// Read ContentBinary from [decoder].
+ContentBinary readContentBinary(dynamic decoder) {
+  // ignore: avoid_dynamic_calls
+  return ContentBinary(decoder.readBuf() as Uint8List);
 }
 
 // ─── ContentDeleted ───────────────────────────────────────────────────────────
@@ -124,15 +149,12 @@ const int contentDeletedRefNumber = 1;
 /// Mirrors: `ContentDeleted` in ContentDeleted.js
 class ContentDeleted implements AbstractContent {
   @override
-  final int length;
+  int length;
 
   ContentDeleted(this.length);
 
   @override
-  bool get countable => false;
-
-  @override
-  bool get isDeleted => true;
+  bool isCountable() => false;
 
   @override
   List<Object?> getContent() => [];
@@ -141,9 +163,23 @@ class ContentDeleted implements AbstractContent {
   ContentDeleted copy() => ContentDeleted(length);
 
   @override
+  ContentDeleted splice(int offset) {
+    final right = ContentDeleted(length - offset);
+    length = offset;
+    return right;
+  }
+
+  @override
+  bool mergeWith(AbstractContent right) {
+    if (right is! ContentDeleted) return false;
+    length += right.length;
+    return true;
+  }
+
+  @override
   void integrate(Transaction transaction, Item item) {
-    transaction.deleteSet.addToIdSet(item.id.client, item.id.clock, length);
-    item._deleted = true;
+    addToIdSet(transaction.deleteSet, item.id.client, item.id.clock, length);
+    item.markDeleted();
   }
 
   @override
@@ -153,16 +189,19 @@ class ContentDeleted implements AbstractContent {
   void gc(dynamic store) {}
 
   @override
-  void write(AbstractUpdateEncoder encoder, int offset) {
-    if (encoder is UpdateEncoderV1) {
-      encoder.writeLen(length - offset);
-    } else if (encoder is UpdateEncoderV2) {
-      encoder.writeLen(length - offset);
-    }
+  void write(dynamic encoder, int offset) {
+    // ignore: avoid_dynamic_calls
+    encoder.writeLen(length - offset);
   }
 
   @override
   int getRef() => contentDeletedRefNumber;
+}
+
+/// Read ContentDeleted from [decoder].
+ContentDeleted readContentDeleted(dynamic decoder) {
+  // ignore: avoid_dynamic_calls
+  return ContentDeleted(decoder.readLen() as int);
 }
 
 // ─── ContentEmbed ─────────────────────────────────────────────────────────────
@@ -181,16 +220,19 @@ class ContentEmbed implements AbstractContent {
   int get length => 1;
 
   @override
-  bool get countable => true;
-
-  @override
-  bool get isDeleted => false;
+  bool isCountable() => true;
 
   @override
   List<Object?> getContent() => [embed];
 
   @override
   ContentEmbed copy() => ContentEmbed(embed);
+
+  @override
+  AbstractContent splice(int offset) => throw StateError('ContentEmbed cannot be spliced');
+
+  @override
+  bool mergeWith(AbstractContent right) => false;
 
   @override
   void integrate(Transaction transaction, Item item) {}
@@ -202,16 +244,19 @@ class ContentEmbed implements AbstractContent {
   void gc(dynamic store) {}
 
   @override
-  void write(AbstractUpdateEncoder encoder, int offset) {
-    if (encoder is UpdateEncoderV1) {
-      encoder.writeJSON(embed);
-    } else if (encoder is UpdateEncoderV2) {
-      encoder.writeJSON(embed);
-    }
+  void write(dynamic encoder, int offset) {
+    // ignore: avoid_dynamic_calls
+    encoder.writeJSON(embed);
   }
 
   @override
   int getRef() => contentEmbedRefNumber;
+}
+
+/// Read ContentEmbed from [decoder].
+ContentEmbed readContentEmbed(dynamic decoder) {
+  // ignore: avoid_dynamic_calls
+  return ContentEmbed(decoder.readJSON());
 }
 
 // ─── ContentFormat ────────────────────────────────────────────────────────────
@@ -231,16 +276,19 @@ class ContentFormat implements AbstractContent {
   int get length => 1;
 
   @override
-  bool get countable => false;
-
-  @override
-  bool get isDeleted => false;
+  bool isCountable() => false;
 
   @override
   List<Object?> getContent() => [value];
 
   @override
   ContentFormat copy() => ContentFormat(key, value);
+
+  @override
+  AbstractContent splice(int offset) => throw StateError('ContentFormat cannot be spliced');
+
+  @override
+  bool mergeWith(AbstractContent right) => false;
 
   @override
   void integrate(Transaction transaction, Item item) {}
@@ -252,18 +300,24 @@ class ContentFormat implements AbstractContent {
   void gc(dynamic store) {}
 
   @override
-  void write(AbstractUpdateEncoder encoder, int offset) {
-    if (encoder is UpdateEncoderV1) {
-      encoder.writeKey(key);
-      encoder.writeJSON(value);
-    } else if (encoder is UpdateEncoderV2) {
-      encoder.writeKey(key);
-      encoder.writeJSON(value);
-    }
+  void write(dynamic encoder, int offset) {
+    // ignore: avoid_dynamic_calls
+    encoder.writeKey(key);
+    // ignore: avoid_dynamic_calls
+    encoder.writeJSON(value);
   }
 
   @override
   int getRef() => contentFormatRefNumber;
+}
+
+/// Read ContentFormat from [decoder].
+ContentFormat readContentFormat(dynamic decoder) {
+  // ignore: avoid_dynamic_calls
+  final key = decoder.readKey() as String;
+  // ignore: avoid_dynamic_calls
+  final value = decoder.readJSON();
+  return ContentFormat(key, value);
 }
 
 // ─── ContentJSON ──────────────────────────────────────────────────────────────
@@ -274,7 +328,7 @@ const int contentJSONRefNumber = 2;
 ///
 /// Mirrors: `ContentJSON` in ContentJSON.js
 class ContentJSON implements AbstractContent {
-  final List<Object?> arr;
+  List<Object?> arr;
 
   ContentJSON(this.arr);
 
@@ -282,16 +336,27 @@ class ContentJSON implements AbstractContent {
   int get length => arr.length;
 
   @override
-  bool get countable => true;
-
-  @override
-  bool get isDeleted => false;
+  bool isCountable() => true;
 
   @override
   List<Object?> getContent() => arr;
 
   @override
   ContentJSON copy() => ContentJSON(List.of(arr));
+
+  @override
+  ContentJSON splice(int offset) {
+    final right = ContentJSON(arr.sublist(offset));
+    arr = arr.sublist(0, offset);
+    return right;
+  }
+
+  @override
+  bool mergeWith(AbstractContent right) {
+    if (right is! ContentJSON) return false;
+    arr.addAll(right.arr);
+    return true;
+  }
 
   @override
   void integrate(Transaction transaction, Item item) {}
@@ -303,23 +368,30 @@ class ContentJSON implements AbstractContent {
   void gc(dynamic store) {}
 
   @override
-  void write(AbstractUpdateEncoder encoder, int offset) {
+  void write(dynamic encoder, int offset) {
     final len = arr.length - offset;
-    if (encoder is UpdateEncoderV1) {
-      encoder.writeLen(len);
-      for (var i = offset; i < arr.length; i++) {
-        encoder.writeJSON(arr[i]);
-      }
-    } else if (encoder is UpdateEncoderV2) {
-      encoder.writeLen(len);
-      for (var i = offset; i < arr.length; i++) {
-        encoder.writeJSON(arr[i]);
-      }
+    // ignore: avoid_dynamic_calls
+    encoder.writeLen(len);
+    for (var i = offset; i < arr.length; i++) {
+      // ignore: avoid_dynamic_calls
+      encoder.writeJSON(arr[i]);
     }
   }
 
   @override
   int getRef() => contentJSONRefNumber;
+}
+
+/// Read ContentJSON from [decoder].
+ContentJSON readContentJSON(dynamic decoder) {
+  // ignore: avoid_dynamic_calls
+  final len = decoder.readLen() as int;
+  final arr = <Object?>[];
+  for (var i = 0; i < len; i++) {
+    // ignore: avoid_dynamic_calls
+    arr.add(jsonDecode(decoder.readString() as String));
+  }
+  return ContentJSON(arr);
 }
 
 // ─── ContentString ────────────────────────────────────────────────────────────
@@ -330,7 +402,7 @@ const int contentStringRefNumber = 4;
 ///
 /// Mirrors: `ContentString` in ContentString.js
 class ContentString implements AbstractContent {
-  final String str;
+  String str;
 
   ContentString(this.str);
 
@@ -338,16 +410,27 @@ class ContentString implements AbstractContent {
   int get length => str.length;
 
   @override
-  bool get countable => true;
-
-  @override
-  bool get isDeleted => false;
+  bool isCountable() => true;
 
   @override
   List<Object?> getContent() => str.split('');
 
   @override
   ContentString copy() => ContentString(str);
+
+  @override
+  ContentString splice(int offset) {
+    final right = ContentString(str.substring(offset));
+    str = str.substring(0, offset);
+    return right;
+  }
+
+  @override
+  bool mergeWith(AbstractContent right) {
+    if (right is! ContentString) return false;
+    str += right.str;
+    return true;
+  }
 
   @override
   void integrate(Transaction transaction, Item item) {}
@@ -359,16 +442,19 @@ class ContentString implements AbstractContent {
   void gc(dynamic store) {}
 
   @override
-  void write(AbstractUpdateEncoder encoder, int offset) {
-    if (encoder is UpdateEncoderV1) {
-      encoder.writeString(str.substring(offset));
-    } else if (encoder is UpdateEncoderV2) {
-      encoder.writeString(str.substring(offset));
-    }
+  void write(dynamic encoder, int offset) {
+    // ignore: avoid_dynamic_calls
+    encoder.writeString(str.substring(offset));
   }
 
   @override
   int getRef() => contentStringRefNumber;
+}
+
+/// Read ContentString from [decoder].
+ContentString readContentString(dynamic decoder) {
+  // ignore: avoid_dynamic_calls
+  return ContentString(decoder.readString() as String);
 }
 
 // ─── ContentType ──────────────────────────────────────────────────────────────
@@ -387,10 +473,7 @@ class ContentType implements AbstractContent {
   int get length => 1;
 
   @override
-  bool get countable => true;
-
-  @override
-  bool get isDeleted => false;
+  bool isCountable() => true;
 
   @override
   List<Object?> getContent() => [type];
@@ -399,32 +482,90 @@ class ContentType implements AbstractContent {
   ContentType copy() => ContentType(type);
 
   @override
+  AbstractContent splice(int offset) => throw StateError('ContentType cannot be spliced');
+
+  @override
+  bool mergeWith(AbstractContent right) => false;
+
+  @override
   void integrate(Transaction transaction, Item item) {
-    // Integrate the nested type into the document
+    // ignore: avoid_dynamic_calls
     (type as dynamic)._integrate(transaction.doc, item);
   }
 
   @override
   void delete(Transaction transaction) {
-    // TODO: delete nested type content
+    // ignore: avoid_dynamic_calls
+    var item = (type as dynamic)._start as Item?;
+    while (item != null) {
+      if (!item.deleted) {
+        item.delete(transaction);
+      } else {
+        // GC'd items need their length subtracted from deleteSet
+        addToIdSet(transaction.deleteSet, item.id.client, item.id.clock, item.length);
+      }
+      item = item.right as Item?;
+    }
+    // ignore: avoid_dynamic_calls
+    (type as dynamic)._map.forEach((_, mapItem) {
+      var mi = mapItem as Item?;
+      while (mi != null) {
+        if (!mi.deleted) {
+          mi.delete(transaction);
+        } else {
+          addToIdSet(transaction.deleteSet, mi.id.client, mi.id.clock, mi.length);
+        }
+        mi = mi.left as Item?;
+      }
+    });
+    // ignore: avoid_dynamic_calls
+    (type as dynamic)._item = null;
   }
 
   @override
   void gc(dynamic store) {
-    // TODO: GC nested type
+    // ignore: avoid_dynamic_calls
+    var item = (type as dynamic)._start as Item?;
+    while (item != null) {
+      item.gc(store, true);
+      item = item.right as Item?;
+    }
+    // ignore: avoid_dynamic_calls
+    (type as dynamic)._start = null;
+    // ignore: avoid_dynamic_calls
+    (type as dynamic)._map.forEach((_, mapItem) {
+      var mi = mapItem as Item?;
+      while (mi != null) {
+        mi.gc(store, true);
+        mi = mi.left as Item?;
+      }
+    });
+    // ignore: avoid_dynamic_calls
+    (type as dynamic)._map.clear();
   }
 
   @override
-  void write(AbstractUpdateEncoder encoder, int offset) {
-    if (encoder is UpdateEncoderV1) {
-      encoder.writeTypeRef((type as dynamic).typeRef as int);
-    } else if (encoder is UpdateEncoderV2) {
-      encoder.writeTypeRef((type as dynamic).typeRef as int);
-    }
+  void write(dynamic encoder, int offset) {
+    // ignore: avoid_dynamic_calls
+    encoder.writeTypeRef((type as dynamic).typeRef as int);
   }
 
   @override
   int getRef() => contentTypeRefNumber;
+}
+
+/// Read ContentType from [decoder].
+ContentType readContentType(dynamic decoder) {
+  // ignore: avoid_dynamic_calls
+  final typeRef = decoder.readTypeRef() as int;
+  // Type construction is deferred to y_type.dart
+  return ContentType(_TypeRefPlaceholder(typeRef));
+}
+
+/// Placeholder for a YType that hasn't been constructed yet.
+class _TypeRefPlaceholder {
+  final int typeRef;
+  _TypeRefPlaceholder(this.typeRef);
 }
 
 // ─── ContentDoc ───────────────────────────────────────────────────────────────
@@ -443,10 +584,7 @@ class ContentDoc implements AbstractContent {
   int get length => 1;
 
   @override
-  bool get countable => true;
-
-  @override
-  bool get isDeleted => false;
+  bool isCountable() => true;
 
   @override
   List<Object?> getContent() => [doc];
@@ -455,23 +593,70 @@ class ContentDoc implements AbstractContent {
   ContentDoc copy() => ContentDoc(doc);
 
   @override
+  AbstractContent splice(int offset) => throw StateError('ContentDoc cannot be spliced');
+
+  @override
+  bool mergeWith(AbstractContent right) => false;
+
+  @override
   void integrate(Transaction transaction, Item item) {
-    // TODO: integrate subdoc
+    // ignore: avoid_dynamic_calls
+    if (doc.shouldLoad as bool) {
+      // ignore: avoid_dynamic_calls
+      transaction.subdocsAdded.add(doc);
+    }
   }
 
   @override
   void delete(Transaction transaction) {
-    // TODO: remove subdoc
+    // ignore: avoid_dynamic_calls
+    if (transaction.subdocsAdded.contains(doc)) {
+      // ignore: avoid_dynamic_calls
+      transaction.subdocsAdded.remove(doc);
+    } else {
+      // ignore: avoid_dynamic_calls
+      transaction.subdocsRemoved.add(doc);
+    }
   }
 
   @override
   void gc(dynamic store) {}
 
   @override
-  void write(AbstractUpdateEncoder encoder, int offset) {
-    // TODO: write doc opts
+  void write(dynamic encoder, int offset) {
+    // ignore: avoid_dynamic_calls
+    encoder.writeAny(doc.guid);
+    // ignore: avoid_dynamic_calls
+    encoder.writeAny(doc.meta);
+    // ignore: avoid_dynamic_calls
+    encoder.writeBool(doc.shouldLoad as bool);
+    // ignore: avoid_dynamic_calls
+    encoder.writeBool(doc.autoLoad as bool);
   }
 
   @override
   int getRef() => contentDocRefNumber;
 }
+
+/// Read ContentDoc from [decoder].
+ContentDoc readContentDoc(dynamic decoder) {
+  // ignore: avoid_dynamic_calls
+  final guid = decoder.readAny() as String;
+  // ignore: avoid_dynamic_calls
+  final meta = decoder.readAny();
+  // ignore: avoid_dynamic_calls
+  final shouldLoad = decoder.readBool() as bool;
+  // ignore: avoid_dynamic_calls
+  final autoLoad = decoder.readBool() as bool;
+  return ContentDoc(_DocPlaceholder(guid, meta, shouldLoad, autoLoad));
+}
+
+/// Placeholder for a Doc that hasn't been constructed yet.
+class _DocPlaceholder {
+  final String guid;
+  final Object? meta;
+  final bool shouldLoad;
+  final bool autoLoad;
+  _DocPlaceholder(this.guid, this.meta, this.shouldLoad, this.autoLoad);
+}
+

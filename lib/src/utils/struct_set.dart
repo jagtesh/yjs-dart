@@ -25,7 +25,7 @@ class StructSet {
 ///
 /// Mirrors: `addStructToIdSet` in StructSet.js
 void addStructToIdSet(IdSet idSet, AbstractStruct struct) {
-  idSet.addToIdSet(struct.id.client, struct.id.clock, struct.length);
+  idSet.add(struct.id.client, struct.id.clock, struct.length);
 }
 
 /// Create an insert set from a struct store.
@@ -37,7 +37,7 @@ IdSet createInsertSetFromStructStore(dynamic store, bool includeDeleted) {
   (s.clients as Map<int, List<AbstractStruct>>).forEach((client, structs) {
     for (final struct in structs) {
       if (!struct.deleted || includeDeleted) {
-        result.addToIdSet(client, struct.id.clock, struct.length);
+        result.add(client, struct.id.clock, struct.length);
       }
     }
   });

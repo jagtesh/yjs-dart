@@ -3,6 +3,7 @@
 /// Mirrors: yjs/src/utils/logging.js (v14.0.0-22)
 library;
 
+import '../structs/item.dart';
 import '../y_type.dart';
 
 /// Convenient helper to log type information.
@@ -15,7 +16,8 @@ void logType(YType type) {
   var n = type.start;
   while (n != null) {
     res.add(n);
-    n = n.right;
+    final r = n.right;
+    n = r is Item ? r : null;
   }
   // ignore: avoid_print
   print('Children: $res');

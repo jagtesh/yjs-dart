@@ -3,7 +3,7 @@
 /// Mirrors: yjs/src/utils/Snapshot.js (v14.0.0-22)
 library;
 
-import '../utils/id_set.dart';
+import '../utils/id_set.dart' hide createDeleteSetFromStructStore;
 import '../utils/struct_store.dart';
 
 /// A snapshot captures the state of a document at a point in time.
@@ -41,10 +41,10 @@ Snapshot createSnapshot(IdSet ds, Map<int, int> sv) => Snapshot(ds, sv);
 ///
 /// Mirrors: `snapshot` in Snapshot.js
 Snapshot snapshot(dynamic store) {
-  final s = store as dynamic;
+  final s = store as StructStore;
   return createSnapshot(
-    createDeleteSetFromStructStore(s as dynamic),
-    getStateVector(s as dynamic),
+    createDeleteSetFromStructStore(s),
+    getStateVector(s),
   );
 }
 

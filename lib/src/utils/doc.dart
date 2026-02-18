@@ -133,7 +133,7 @@ class Doc extends Observable<String> {
     }
     final type = typeConstructor();
     share[name] = type;
-    type._integrate(this, null);
+    type.integrate(this, null);
     return type;
   }
 

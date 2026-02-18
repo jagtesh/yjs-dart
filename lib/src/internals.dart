@@ -31,5 +31,15 @@ export 'y_type.dart';
 export 'structs/abstract_struct.dart';
 export 'structs/gc.dart';
 export 'structs/content.dart';
-export 'structs/item.dart';
+export 'structs/item.dart'
+    hide
+        readContentDeleted,
+        readContentJSON,
+        readContentBinary,
+        readContentString,
+        readContentEmbed,
+        readContentFormat,
+        readContentType,
+        readContentAny,
+        readContentDoc;
 export 'structs/skip.dart';

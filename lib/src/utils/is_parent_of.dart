@@ -15,7 +15,7 @@ bool isParentOf(YType<dynamic> parent, Item? child) {
     if (current.parent == parent) return true;
     final p = current.parent;
     if (p is YType) {
-      current = p._item;
+      current = p.item;
     } else {
       break;
     }

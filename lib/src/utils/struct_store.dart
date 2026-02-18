@@ -34,10 +34,10 @@ class StructStore {
   }
 }
 
-/// Add a struct to [store].
+/// Add a struct to [store] (typed implementation).
 ///
 /// Mirrors: `addStruct` in StructStore.js
-void addStructToStore(StructStore store, AbstractStruct struct) {
+void addStructToStoreImpl(StructStore store, AbstractStruct struct) {
   var structs = store.clients[struct.id.client];
   if (structs == null) {
     structs = [];
@@ -70,6 +70,11 @@ void addStructToStore(StructStore store, AbstractStruct struct) {
   structs.add(struct);
 }
 
+/// Add a struct to [store] (dynamic store, for use from item.dart).
+void addStructToStore(dynamic store, AbstractStruct struct) {
+  addStructToStoreImpl(store as StructStore, struct);
+}
+
 /// Return the state vector as a Map<client, clock>.
 ///
 /// Note that clock refers to the next expected clock id.
@@ -82,8 +87,9 @@ Map<int, int> getStateVector(StructStore store) {
     sm[client] = struct.id.clock + struct.length;
   });
   store.skips.clients.forEach((client, ranges) {
-    if (ranges.isNotEmpty) {
-      sm[client] = ranges.first.clock;
+    final ids = ranges.getIds();
+    if (ids.isNotEmpty) {
+      sm[client] = ids.first.clock;
     }
   });
   return sm;
@@ -92,8 +98,8 @@ Map<int, int> getStateVector(StructStore store) {
 /// Get the current clock for [client] in [store].
 ///
 /// Mirrors: `getState` in StructStore.js
-int getState(StructStore store, int client) {
-  final structs = store.clients[client];
+int getState(dynamic store, int client) {
+  final structs = (store as StructStore).clients[client];
   if (structs == null || structs.isEmpty) return 0;
   final lastStruct = structs.last;
   return lastStruct.id.clock + lastStruct.length;
@@ -129,11 +135,12 @@ int findIndexSS(List<AbstractStruct> structs, int clock) {
 /// Get the struct at [id] from [store].
 ///
 /// Mirrors: `getItem` in StructStore.js
-AbstractStruct getItem(StructStore store, ID id) {
-  final structs = store.clients[id.client];
+AbstractStruct getItem(dynamic store, ID id) {
+  final structs = (store as StructStore).clients[id.client];
   if (structs == null) throw StateError('No structs for client ${id.client}');
   return structs[findIndexSS(structs, id.clock)];
 }
+
 
 /// Create a delete set from all GC structs in [store].
 ///
@@ -143,7 +150,7 @@ IdSet createDeleteSetFromStructStore(StructStore store) {
   store.clients.forEach((client, structs) {
     for (final struct in structs) {
       if (struct.deleted) {
-        ds.addToIdSet(client, struct.id.clock, struct.length);
+        addToIdSet(ds, client, struct.id.clock, struct.length);
       }
     }
   });
@@ -164,3 +171,52 @@ void integrityCheck(StructStore store) {
     }
   });
 }
+
+/// Get the item at [id], splitting if necessary so that the returned item
+/// starts exactly at [id.clock].
+///
+/// Mirrors: `getItemCleanStart` in StructStore.js
+dynamic getItemCleanStart(dynamic transaction, ID id) {
+  // ignore: avoid_dynamic_calls
+  final store = transaction.doc.store as StructStore;
+  final structs = store.clients[id.client]!;
+  final index = findIndexSS(structs, id.clock);
+  final struct = structs[index];
+  if (struct.id.clock < id.clock && struct is _SplittableStruct) {
+    // Need to split at id.clock
+    final diff = id.clock - struct.id.clock;
+    // ignore: avoid_dynamic_calls
+    final right = (transaction as dynamic)._splitStruct(struct, diff);
+    return right;
+  }
+  return struct;
+}
+
+/// Get the item at [id], splitting if necessary so that the returned item
+/// ends exactly at [id.clock] (inclusive).
+///
+/// Mirrors: `getItemCleanEnd` in StructStore.js
+dynamic getItemCleanEnd(dynamic transaction, dynamic store, ID id) {
+  final structs = (store as StructStore).clients[id.client]!;
+  final index = findIndexSS(structs, id.clock);
+  final struct = structs[index];
+  if (id.clock != struct.id.clock + struct.length - 1 && struct is! GC) {
+    final diff = id.clock - struct.id.clock + 1;
+    // ignore: avoid_dynamic_calls
+    (transaction as dynamic)._splitStruct(struct, diff);
+  }
+  return struct;
+}
+
+/// Replace [struct] in the store with [newStruct].
+///
+/// Mirrors: `replaceStruct` in StructStore.js
+void replaceStruct(dynamic transaction, AbstractStruct struct, AbstractStruct newStruct) {
+  // ignore: avoid_dynamic_calls
+  final store = transaction.doc.store as StructStore;
+  final structs = store.clients[struct.id.client]!;
+  structs[findIndexSS(structs, struct.id.clock)] = newStruct;
+}
+
+// Marker interface for structs that can be split
+abstract class _SplittableStruct {}

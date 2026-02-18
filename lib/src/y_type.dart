@@ -69,6 +69,9 @@ abstract class YType<EventType extends YEvent<dynamic>> {
   /// Returns the ID of the item that contains this type.
   ID? get _itemId => _item?.id;
 
+  /// Public accessor for the item that contains this type.
+  Item? get item => _item;
+
   /// Convert this type to JSON.
   Object? toJson();
 
@@ -76,7 +79,7 @@ abstract class YType<EventType extends YEvent<dynamic>> {
   int get length;
 
   /// Called when this type is integrated into a document.
-  void _integrate(dynamic doc, Item? item) {
+  void integrate(dynamic doc, Item? item) {
     this.doc = doc;
     _item = item;
   }

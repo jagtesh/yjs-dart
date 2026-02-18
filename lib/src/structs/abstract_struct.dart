@@ -4,10 +4,9 @@
 library;
 
 import '../utils/id.dart';
-import '../utils/update_encoder.dart';
 
 // Forward declaration - Transaction is defined in transaction.dart
-// We use a dynamic import pattern to avoid circular deps.
+// We use dynamic to avoid circular deps.
 // ignore: unused_import
 import '../utils/transaction.dart';
 
@@ -15,7 +14,7 @@ import '../utils/transaction.dart';
 ///
 /// Mirrors: `AbstractStruct` in AbstractStruct.js
 abstract class AbstractStruct {
-  final ID id;
+  ID id;
   int length;
 
   AbstractStruct(this.id, this.length);
@@ -31,11 +30,12 @@ abstract class AbstractStruct {
   /// Returns whether this merged with [right].
   bool mergeWith(AbstractStruct right) => false;
 
-  /// Write this struct to [encoder] at [offset] with [encodingRef].
-  void write(AbstractUpdateEncoder encoder, int offset, int encodingRef);
+  /// Write this struct to [encoder] at [offset].
+  /// [encoder] is dynamic to avoid circular import with update_encoder.dart.
+  void write(dynamic encoder, int offset, [int encodingRef = 0]);
 
   /// Integrate this struct into the document via [transaction] at [offset].
-  void integrate(Transaction transaction, int offset);
+  void integrate(dynamic transaction, int offset);
 
   /// Split this struct at [diff], returning the right part.
   AbstractStruct splice(int diff);

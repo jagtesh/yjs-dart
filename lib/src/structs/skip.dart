@@ -5,8 +5,7 @@ library;
 
 import '../structs/abstract_struct.dart';
 import '../utils/id.dart';
-import '../utils/update_encoder.dart';
-import '../utils/transaction.dart';
+import '../utils/id_set.dart';
 import '../lib0/encoding.dart' as encoding;
 
 /// Reference number for Skip structs in the binary encoding.
@@ -31,7 +30,7 @@ class Skip extends AbstractStruct {
   }
 
   @override
-  void integrate(Transaction transaction, int offset) {
+  void integrate(dynamic transaction, int offset) {
     if (offset > 0) {
       final newId = createID(id.client, id.clock + offset);
       final adjusted = Skip(newId, length - offset);
@@ -41,21 +40,21 @@ class Skip extends AbstractStruct {
     _integrateInto(transaction);
   }
 
-  void _integrateInto(Transaction transaction) {
+  void _integrateInto(dynamic transaction) {
+    // ignore: avoid_dynamic_calls
     transaction.doc.store.skips.addToIdSet(id.client, id.clock, length);
+    // ignore: avoid_dynamic_calls
     transaction.doc.store.addStruct(this);
   }
 
   @override
-  void write(AbstractUpdateEncoder encoder, int offset, int encodingRef) {
-    if (encoder is UpdateEncoderV1) {
-      encoder.writeInfo(structSkipRefNumber);
-      // write as VarUint because Skips can't make use of predictable length-encoding
-      encoding.writeVarUint(encoder.restEncoder, length - offset);
-    } else if (encoder is UpdateEncoderV2) {
-      encoder.writeInfo(structSkipRefNumber);
-      encoding.writeVarUint(encoder.restEncoder, length - offset);
-    }
+  void write(dynamic encoder, int offset, [int encodingRef = 0]) {
+    // ignore: avoid_dynamic_calls
+    encoder.writeInfo(structSkipRefNumber);
+    // write as VarUint because Skips can't make use of predictable length-encoding
+    // ignore: avoid_dynamic_calls
+    final restEncoder = encoder.restEncoder;
+    encoding.writeVarUint(restEncoder as encoding.Encoder, length - offset);
   }
 
   @override
