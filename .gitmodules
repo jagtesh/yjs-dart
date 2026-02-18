@@ -1,0 +1,6 @@
+[submodule "vendor/yjs"]
+	path = vendor/yjs
+	url = https://github.com/yjs/yjs.git
+[submodule "vendor/y-protocols"]
+	path = vendor/y-protocols
+	url = https://github.com/yjs/y-protocols.git
