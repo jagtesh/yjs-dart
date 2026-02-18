@@ -21,7 +21,8 @@ export 'utils/relative_position.dart';
 export 'utils/snapshot.dart';
 export 'utils/struct_set.dart';
 export 'utils/struct_store.dart';
-export 'utils/transaction.dart';
+export 'utils/transaction.dart'
+    hide callEventHandlerListeners, generateNewClientId;
 export 'utils/undo_manager.dart';
 export 'utils/updates.dart';
 export 'utils/y_event.dart';

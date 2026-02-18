@@ -24,7 +24,9 @@ class YEvent<T> {
   /// Lazily computed set of keys that changed.
   Set<String?>? _keysChanged;
 
-  YEvent(this.target, this.transaction);
+  YEvent(this.target, this.transaction, [Set<String?>? keysChanged]) {
+    if (keysChanged != null) _keysChanged = keysChanged;
+  }
 
   /// Returns the path from the root type to this event's target.
   List<Object> get path {
