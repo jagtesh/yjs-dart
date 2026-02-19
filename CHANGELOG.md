@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.4
+
+-   **Fix**: `StructRange.refs` was created as a fixed-length list via `List.filled()`, causing `refs.clear()` to throw `"Cannot clear a fixed-length list"` inside `_integrateStructs.addStackToRestSS()`. This silently dropped specific update packets (e.g. certain journal pages would never sync). Fixed by adding `growable: true` and making `refs` non-final.
+-   **Fix**: `ContentType.delete()` called nonexistent `store.gc` field → `NoSuchMethodError` when any nested YType item gets deleted. Now correctly adds already-deleted children to `transaction.mergeStructs` and calls `transaction.changed.remove(type)`.
+-   **Fix**: `ContentType.gc()` now nulls `type.yStart`, traverses yMap entries via their full left-chain, and calls `type.yMap.clear()` — matching the JS Yjs source.
+-   **Resilience**: `readSyncStep2` and `callEventHandlerListeners` now print a warning on failure instead of crashing the app or silently discarding the error.
+
 ## 1.1.3
 
 -   **Fix**: `GC.getMissing()` added — was missing, causing `NoSuchMethodError` during struct integration (`_integrateStructs` calls it dynamically on all struct types).
