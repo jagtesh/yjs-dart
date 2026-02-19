@@ -733,7 +733,13 @@ class _ContentDeleted implements AbstractContent {
 ///
 /// Mirrors: `readItemContent` in Item.js
 AbstractContent readItemContent(dynamic decoder, int info) {
-  return contentRefs[info & _bits5](decoder);
+  final ref = info & _bits5;
+  if (ref < 0 || ref >= contentRefs.length) {
+    throw StateError(
+        'readItemContent: unknown content ref $ref (info=$info). '
+        'This usually means a V2-encoded update was decoded with a V1 decoder.');
+  }
+  return contentRefs[ref](decoder);
 }
 
 /// Lookup table for content readers, indexed by content ref number.

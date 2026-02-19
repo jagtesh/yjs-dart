@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.6
+
+-   **Fix**: `encodeStateAsUpdateV2` no longer includes `store.pendingDs`/`pendingStructs` when using a V1 encoder. Both pending fields are stored in V2 format internally (via `mergeUpdatesV2`); mixing them into a V1 merge caused `readItemContent` to read garbage content refs (e.g. ref=24) and crash with a `RangeError`. `writeStateAsUpdate` already captures all integrated state, so the pending fields can be safely skipped for V1 snapshots.
+-   **Resilience**: `readItemContent` now throws a human-readable `StateError` on out-of-range content refs instead of a bare `RangeError`.
+
 ## 1.1.5
 
 -   **Resilience**: `readVarString` now uses `utf8.decode(..., allowMalformed: true)` to tolerate invalid UTF-8 sequences (common in cross-platform CRDT string handling), preventing `FormatException` crashes.

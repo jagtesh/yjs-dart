@@ -422,19 +422,25 @@ Uint8List encodeStateAsUpdateV2(
   final updates = [encoder.toUint8Array() as Uint8List];
   // ignore: avoid_dynamic_calls
   final store = doc.store as StructStore;
-  if (store.pendingDs != null) {
-    updates.add(store.pendingDs!);
-  }
-  if (store.pendingStructs != null) {
-    updates.add(diffUpdateV2(
-        store.pendingStructs!.update, encodedTargetStateVector));
+  // pendingDs and pendingStructs are stored in V2 format (merged via
+  // mergeUpdatesV2). When using a V1 encoder we must NOT attempt to merge
+  // them with the V1 merger, because the byte layout is incompatible and
+  // leads to garbage content-ref reads (e.g. ref=24 → RangeError).
+  // writeStateAsUpdate already captured all _integrated_ state; the pending
+  // fields only hold un-integrated stubs from a previously incomplete apply.
+  final isV1Encoder = encoder is UpdateEncoderV1;
+  if (!isV1Encoder) {
+    // V2 path: safe to include pending data (all in V2 format)
+    if (store.pendingDs != null) {
+      updates.add(store.pendingDs!);
+    }
+    if (store.pendingStructs != null) {
+      updates.add(diffUpdateV2(
+          store.pendingStructs!.update, encodedTargetStateVector));
+    }
   }
   if (updates.length > 1) {
-    if (encoder is UpdateEncoderV1) {
-      return mergeUpdates(updates.map((u, ) => u).toList());
-    } else {
-      return mergeUpdatesV2(updates);
-    }
+    return mergeUpdatesV2(updates);
   }
   return updates[0];
 }
