@@ -406,10 +406,10 @@ class Item extends AbstractStruct {
       if (parentItem is GC) {
         parent = null;
       } else {
-        // ignore: avoid_dynamic_calls
-        parent = (parentItem as Item).content is ContentType
-            ? ((parentItem as Item).content as ContentType).type
-            : (parentItem as Item).content;
+        if (parentItem is Item) {
+          final content = parentItem.content;
+          parent = content is ContentType ? content.type : content;
+        }
       }
     }
     return null;
@@ -722,9 +722,6 @@ class _ContentDeleted implements AbstractContent {
 // Null-safety helper
 // ---------------------------------------------------------------------------
 
-extension _NullableAbstractStruct on AbstractStruct? {
-  bool get isNull => this == null;
-}
 
 // ---------------------------------------------------------------------------
 // readItemContent + contentRefs lookup table

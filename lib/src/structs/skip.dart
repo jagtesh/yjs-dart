@@ -5,7 +5,6 @@ library;
 
 import '../structs/abstract_struct.dart';
 import '../utils/id.dart';
-import '../utils/id_set.dart';
 import '../lib0/encoding.dart' as encoding;
 
 /// Reference number for Skip structs in the binary encoding.
