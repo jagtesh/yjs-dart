@@ -14,26 +14,19 @@ import '../structs/item.dart';
 import '../structs/skip.dart';
 import '../utils/id.dart';
 import '../utils/id_set.dart'
-    show
-        IdSet,
-        createIdSet,
-        writeIdSet,
-        readAndApplyDeleteSet,
-        createDeleteSetFromStructStore;
+import '../utils/id_set.dart' show IdSet, writeIdSet, readIdSet;
 import '../utils/struct_set.dart'
     show StructSet, StructRange, readStructSet, removeRangesFromStructSet;
 import '../utils/struct_store.dart'
-    show StructStore, getState, getStateVector, findIndexSS, findIndexCleanStart;
+    show
+        StructStore,
+        addStructToStore,
+        getStateVector,
+        getItemCleanStart,
+        getItem;
 import '../utils/transaction.dart' show transact, Transaction;
-import '../utils/update_decoder.dart'
-    show
-        AbstractUpdateDecoder,
-        UpdateDecoderV1,
-        UpdateDecoderV2,
-        IdSetDecoderV1;
+import '../utils/update_decoder.dart' show UpdateDecoderV1, UpdateDecoderV2;
 import '../utils/update_encoder.dart'
-    show
-        AbstractUpdateEncoder,
         UpdateEncoderV1,
         UpdateEncoderV2,
         IdSetEncoderV1,
