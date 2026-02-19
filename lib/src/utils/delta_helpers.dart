@@ -4,9 +4,9 @@
 library;
 
 import '../structs/item.dart' show Item;
+import '../utils/transaction.dart';
 import '../utils/id_set.dart'
     show
-        IdSet,
         diffIdSet,
         mergeIdSets,
         createInsertSetFromStructStore,
@@ -22,7 +22,7 @@ Map<String, Object?> diffDocsToDelta(dynamic v1, dynamic v2,
     {Object? am}) {
   final result = <String, Object?>{};
   // ignore: avoid_dynamic_calls
-  v2.transact((tr) {
+  v2.transact((Transaction tr) {
     // ignore: avoid_dynamic_calls
     final v2Store = v2.store;
     // ignore: avoid_dynamic_calls

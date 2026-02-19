@@ -2,7 +2,7 @@ library;
 
 import '../utils/transaction.dart';
 import 'abstract_type.dart';
-import 'utils.dart'; // for typeListSlice
+ // for typeListSlice
 
 /// A shared XML Fragment.
 ///
