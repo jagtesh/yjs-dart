@@ -270,7 +270,6 @@ AbsolutePosition? createAbsolutePositionFromRelativePosition(
         ? followRedone(store, rightID)
         : _getItemWithOffset(store, rightID);
     final right = res.item;
-    if (right is! Item) return null;
     type = right.parent;
     // ignore: avoid_dynamic_calls
     final typeItem = (type as dynamic).yItem;
@@ -301,7 +300,7 @@ AbsolutePosition? createAbsolutePositionFromRelativePosition(
           ? followRedone(store, typeID)
           : _getItemWithOffset(store, typeID);
       final item = result.item;
-      if (item is Item && item.content is ContentType) {
+      if (item.content is ContentType) {
         type = (item.content as ContentType).type;
       } else {
         return null;

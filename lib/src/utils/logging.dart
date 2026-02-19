@@ -11,7 +11,7 @@ import '../y_type.dart';
 /// Do not use in production systems as the output can be immense!
 ///
 /// Mirrors: `logType` in logging.js
-void logType(YType type) {
+void logType(YType<dynamic> type) {
   final res = <Object?>[];
   var n = type.start;
   while (n != null) {
