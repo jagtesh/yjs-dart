@@ -142,7 +142,9 @@ ArraySearchMarker? findMarker(AbstractType<dynamic> yarray, int index) {
       pindex -= p.length;
     }
   }
-  // Ensure p can't be merged with left
+  // We want to make sure p can't be merged with left, because that would
+  // cause typeListDelete to split an already-merged item incorrectly.
+  // Mirrors: vendor/yjs/src/ytype.js findMarker (lines 495-503)
   while (p.left != null &&
       (p.left as Item).id.client == p.id.client &&
       (p.left as Item).id.clock + (p.left as Item).length == p.id.clock) {
@@ -185,7 +187,9 @@ void updateMarkerChanges(
       p.marker = true;
     }
     if (index < m.index || (len > 0 && index == m.index)) {
-      m.index = index > m.index + len ? m.index + len : index < m.index ? m.index + len : index;
+      // Mirrors JS: m.index = math.max(index, m.index + len)
+      // When an insertion happens at or before the marker, shift it forward.
+      m.index = (m.index + len > index) ? m.index + len : index;
     }
   }
 }

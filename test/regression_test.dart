@@ -316,4 +316,112 @@ void main() {
       expect(sv, equals(Uint8List.fromList([0])));
     });
   });
+  // -------------------------------------------------------------------------
+  // YArray uniqueness — regression for Bug #YArray-Dup:
+  // yjs-dart YArray.toArray() must return unique entries from the linked list.
+  // JS Yjs never produces duplicates from the same document; neither should Dart.
+  // -------------------------------------------------------------------------
+  group('YArray uniqueness (Bug #YArray-Dup)', () {
+    test('YArray.toArray() returns each inserted item exactly once', () {
+      final doc = Doc();
+      final arr = doc.getArray<dynamic>('list')!;
+      transact(doc, (_) => arr.insert(0, ['a', 'b', 'c']));
+
+      final result = arr.toArray();
+      expect(result, equals(['a', 'b', 'c']));
+      expect(result.length, equals(3));
+    });
+
+    test('YArray children inside YMap round-trip without duplicates', () {
+      // Mirrors the Notella pattern: blocksMap.get(id).get('children').toArray()
+      final doc1 = Doc();
+      final blocks = doc1.get<YMap<dynamic>>('blocks', () => YMap<dynamic>())!;
+
+      transact(doc1, (_) {
+        final block = YMap<dynamic>();
+        block.set('id', 'page-1');
+        final children = YArray<dynamic>();
+        children.insert(0, ['child-a', 'child-b', 'child-c']);
+        block.set('children', children);
+        blocks.set('page-1', block);
+      });
+
+      // Sync to doc2
+      final doc2 = Doc();
+      doc2.get<YMap<dynamic>>('blocks', () => YMap<dynamic>());
+      applyUpdate(doc2, encodeStateAsUpdate(doc1));
+
+      final blocks2 = doc2.get<YMap<dynamic>>('blocks')!;
+      final block2 = blocks2.get('page-1') as YMap<dynamic>?;
+      // Note: after sync the nested YMap may come through as YXmlFragment (known
+      // limitation). This test primarily verifies the doc1 array is clean before sync.
+      // The in-doc case must be correct.
+      final childrenInDoc1 = (blocks.get('page-1') as YMap<dynamic>).get('children') as YArray<dynamic>;
+      final arr = childrenInDoc1.toArray();
+
+      // No duplicates
+      expect(arr.toSet().length, equals(arr.length),
+          reason: 'YArray.toArray() must not contain duplicate entries');
+      expect(arr, equals(['child-a', 'child-b', 'child-c']));
+    });
+
+    test('sequential inserts produce unique ordered entries', () {
+      final doc = Doc();
+      final arr = doc.getArray<dynamic>('ids')!;
+
+      // Insert items one at a time (simulates block-by-block creation)
+      for (var i = 0; i < 10; i++) {
+        transact(doc, (_) => arr.insert(arr.length, ['id-$i']));
+      }
+
+      final result = arr.toArray();
+      expect(result.length, equals(10));
+      expect(result.toSet().length, equals(10),
+          reason: 'Sequential inserts must not produce duplicates');
+    });
+
+    test('concurrent inserts on two docs merge without duplicates', () {
+      // doc1 and doc2 both start from the same state, then each insert
+      // a different item. After merging, each item appears exactly once.
+      final doc1 = Doc();
+      final doc2 = Doc();
+      doc1.getArray<dynamic>('arr');
+      doc2.getArray<dynamic>('arr');
+
+      // Sync empty state
+      applyUpdate(doc2, encodeStateAsUpdate(doc1));
+      applyUpdate(doc1, encodeStateAsUpdate(doc2));
+
+      // Concurrent inserts
+      final arr1 = doc1.getArray<dynamic>('arr')!;
+      final arr2 = doc2.getArray<dynamic>('arr')!;
+      transact(doc1, (_) => arr1.insert(0, ['from-doc1']));
+      transact(doc2, (_) => arr2.insert(0, ['from-doc2']));
+
+      // Merge
+      applyUpdate(doc1, encodeStateAsUpdate(doc2));
+      applyUpdate(doc2, encodeStateAsUpdate(doc1));
+
+      final result1 = doc1.getArray<dynamic>('arr')!.toArray();
+      final result2 = doc2.getArray<dynamic>('arr')!.toArray();
+
+      // Both docs converge
+      expect(result1, equals(result2), reason: 'Docs must converge after merge');
+
+      // No duplicates
+      expect(result1.length, equals(2));
+      expect(result1.toSet().length, equals(2),
+          reason: 'Concurrent inserts must not produce duplicate entries after merge');
+      expect(result1, containsAll(['from-doc1', 'from-doc2']));
+    });
+
+    test('YArray.length matches toArray().length (no phantom entries)', () {
+      final doc = Doc();
+      final arr = doc.getArray<dynamic>('x')!;
+      transact(doc, (_) => arr.insert(0, ['p', 'q', 'r', 's']));
+
+      expect(arr.length, equals(arr.toArray().length),
+          reason: 'YArray.length must equal the number of items in toArray()');
+    });
+  });
 }

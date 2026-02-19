@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.9
+
+-   **Fix**: Fixed an off by 1 bug that occured when removing an item from YArray.
+
+
 ## 1.1.8
 
 -   **Fix**: `yjsReadUpdate` now executes the `pendingStructs` retry **outside** the `transact` callback. Previously calling `applyUpdateV2` inside the callback caused unbounded recursion (the nested call reused the same transaction via `doc.currentTransaction != null`, and if the retried update itself had unresolved deps it would set `retry=true` again and recurse infinitely — the root cause of the page-click hang).
