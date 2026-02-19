@@ -699,6 +699,22 @@ class YType<EventType> {
   /// Makes a copy of this data type that can be included somewhere else.
   ///
   /// Mirrors: `clone` in ytype.js
+  YType<dynamic> clone() {
+    final newType = YType<dynamic>();
+    newType.mapChildren((child, i) {
+      if (child is YType) {
+        newType.insert(i, [child.clone()]);
+      } else {
+        newType.insert(i, [child]);
+      }
+      return null;
+    });
+    forEachAttr((val, key, _) {
+       newType.setAttr(key, val);
+    });
+    return newType;
+  }
+
   YType<EventType> clone() {
     final cpy = copy();
     // Copy array content
