@@ -3,7 +3,7 @@ description: >
   A pure Dart translation of the Yjs CRDT library (yjs v14.0.0-22) and
   y-protocols (v1.0.5), with no external dependencies. Maintains a 1:1
   structural mapping to the JavaScript source for easy diff-based syncing.
-version: 1.1.6
+version: 1.1.7
 repository: https://github.com/jagtesh/yjs-dart
 
 environment:

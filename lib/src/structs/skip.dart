@@ -5,6 +5,7 @@ library;
 
 import '../structs/abstract_struct.dart';
 import '../utils/id.dart';
+import '../utils/id_set.dart' show IdSet, addToIdSet;
 import '../lib0/encoding.dart' as encoding;
 
 /// Reference number for Skip structs in the binary encoding.
@@ -40,10 +41,11 @@ class Skip extends AbstractStruct {
   }
 
   void integrateInto(dynamic transaction) {
+    final store = transaction.doc.store;
+    // addToIdSet is a free function in id_set.dart, not a method on IdSet
+    addToIdSet(store.skips as IdSet, id.client, id.clock, length);
     // ignore: avoid_dynamic_calls
-    transaction.doc.store.skips.addToIdSet(id.client, id.clock, length);
-    // ignore: avoid_dynamic_calls
-    transaction.doc.store.addStruct(this);
+    store.addStruct(this);
   }
 
   @override

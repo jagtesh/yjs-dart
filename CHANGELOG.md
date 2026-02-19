@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.7
+
+-   **Fix**: `Skip.integrateInto` was calling `addToIdSet` as a method on `IdSet` — it is a free function. Fixed to call `addToIdSet(store.skips, client, clock, length)` correctly.
+
 ## 1.1.6
 
 -   **Fix**: `encodeStateAsUpdateV2` no longer includes `store.pendingDs`/`pendingStructs` when using a V1 encoder. Both pending fields are stored in V2 format internally (via `mergeUpdatesV2`); mixing them into a V1 merge caused `readItemContent` to read garbage content refs (e.g. ref=24) and crash with a `RangeError`. `writeStateAsUpdate` already captures all integrated state, so the pending fields can be safely skipped for V1 snapshots.
