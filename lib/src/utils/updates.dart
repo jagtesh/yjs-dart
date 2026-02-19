@@ -19,15 +19,13 @@ import '../utils/struct_set.dart'
     show StructSet, StructRange, readStructSet, removeRangesFromStructSet;
 import '../utils/struct_store.dart'
     show
-        StructStore,
+        addStructToStore,
         getState,
         getStateVector,
-        getItemCleanStart,
-        getItem,
         findIndexSS;
 import '../utils/transaction.dart' show transact, Transaction;
 import '../utils/update_decoder.dart'
-    show UpdateDecoderV1, UpdateDecoderV2, IdSetDecoderV1, IdSetDecoderV2;
+    show UpdateDecoderV1, UpdateDecoderV2, IdSetDecoderV1;
 import '../utils/update_encoder.dart'
     show
         AbstractUpdateEncoder,
