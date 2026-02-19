@@ -276,11 +276,12 @@ void yjsReadUpdate(
   dynamic structDecoder,
 ]) {
   structDecoder ??= UpdateDecoderV2(decoder);
-  var retry = false;
   transact(
     ydoc,
     (transaction) {
       transaction.local = false;
+      var retry = false;
+      print('[yjsReadUpdate] START integration');
       // ignore: avoid_dynamic_calls
       final store = transaction.doc.store as StructStore;
       final ss = readStructSet(structDecoder, transaction.doc);
@@ -297,7 +298,9 @@ void yjsReadUpdate(
         }
       });
       removeRangesFromStructSet(ss, knownState);
+      print('[yjsReadUpdate] calling _integrateStructs');
       final restStructs = _integrateStructs(transaction, store, ss);
+      print('[yjsReadUpdate] _integrateStructs done, restStructs=${restStructs != null}');
       final pending = store.pendingStructs;
       if (pending != null) {
         for (final entry in pending.missing.entries) {
@@ -343,22 +346,19 @@ void yjsReadUpdate(
       } else {
         store.pendingDs = dsRest;
       }
-      // NOTE: do NOT call applyUpdateV2 here — doing so inside the transact
-      // callback causes unbounded recursion: transact() reuses the current
-      // transaction for nested calls, and the retried update may itself set
-      // pendingStructs → retry again, spinning forever.
+      // Matches JS: retry inside transact (nested call reuses same transaction)
+      print('[yjsReadUpdate] retry=$retry pendingStructs=${store.pendingStructs != null}');
+      if (retry) {
+        print('[yjsReadUpdate] RETRYING with pendingStructs update');
+        final update = store.pendingStructs!.update;
+        store.pendingStructs = null;
+        applyUpdateV2(transaction.doc, update);
+        print('[yjsReadUpdate] RETRY complete');
+      }
     },
     transactionOrigin,
     false,
   );
-  // Retry is done OUTSIDE the transaction so each attempt gets a fresh one.
-  if (retry) {
-    // ignore: avoid_dynamic_calls
-    final store = (ydoc as dynamic).store as StructStore;
-    final update = store.pendingStructs!.update;
-    store.pendingStructs = null;
-    applyUpdateV2(ydoc, update);
-  }
 }
 
 
