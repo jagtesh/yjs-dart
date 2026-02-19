@@ -15,6 +15,7 @@ import 'structs/abstract_struct.dart';
 import 'structs/content.dart';
 import 'structs/item.dart';
 import 'utils/event_handler.dart';
+import 'utils/doc.dart';
 import 'utils/id.dart';
 import 'utils/id_set.dart' show createIdSet, mergeIdSets, IdSet;
 import 'utils/struct_store.dart'
@@ -669,10 +670,8 @@ class YType<EventType> {
                  ops.add(op);
                  str = '';
                }
-               dynamic val = node.content.getContent();
-               if (val is List && val.length == 1) {
-                 val = val[0];
-               }
+               final contentList = node.content.getContent();
+               final Object? val = (contentList.length == 1) ? contentList[0] : contentList;
                final op = <String, Object?>{'insert': val};
                if (currentAttributes.isNotEmpty) {
                  op['attributes'] = Map<String, Object?>.from(currentAttributes);
@@ -688,10 +687,8 @@ class YType<EventType> {
                  ops.add(op);
                  str = '';
                }
-               dynamic val = node.content.getContent();
-                if (val is List && val.length == 1) {
-                 val = val[0];
-               }
+               final contentList = node.content.getContent();
+               final Object? val = (contentList.length == 1) ? contentList[0] : contentList;
                final op = <String, Object?>{'insert': val};
                if (currentAttributes.isNotEmpty) {
                  op['attributes'] = Map<String, Object?>.from(currentAttributes);
@@ -1535,13 +1532,13 @@ class _NoAttributionsManager {
 }
 
 class _AttributedContent {
+  _AttributedContent(this.client, this.clock, this.deleted, this.content,
+      this.attrs, this.render);
+
   final int client;
   final int clock;
   final bool deleted;
   final AbstractContent content;
   final Object? attrs;
   final bool render;
-
-  _AttributedContent(this.client, this.clock, this.deleted, this.content,
-      this.attrs, this.render);
 }
