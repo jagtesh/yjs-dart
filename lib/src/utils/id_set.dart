@@ -10,7 +10,6 @@ import '../lib0/decoding.dart' as decoding;
 import '../structs/abstract_struct.dart';
 import '../utils/id.dart';
 import '../utils/update_encoder.dart';
-import '../utils/update_decoder.dart';
 import '../utils/struct_store.dart' as struct_store;
 
 /// A single contiguous range of IDs: [clock, clock+len).
@@ -248,7 +247,7 @@ void iterateStructs(
   var index = findIndexSS(structs, clock);
   var struct = structs[index];
   // Split if necessary (requires transaction)
-  if (struct.id.clock < clock && struct is dynamic) {
+  if (struct.id.clock < clock) {
     // splitItem would be called here — deferred to Phase 2
   }
   while (index < structs.length) {
@@ -590,7 +589,7 @@ Uint8List? readAndApplyDeleteSet(
     // ignore: avoid_dynamic_calls
     final numberOfDeletes = decoding.readVarUint(decoder.restDecoder as decoding.Decoder);
     // ignore: avoid_dynamic_calls
-    final structs = (store.clients[client] ?? []) as List<AbstractStruct>;
+    final structs = (store.clients[client] ?? <AbstractStruct>[]) as List<AbstractStruct>;
     // ignore: avoid_dynamic_calls
     final state = struct_store.getState(store, client);
     for (var j = 0; j < numberOfDeletes; j++) {
