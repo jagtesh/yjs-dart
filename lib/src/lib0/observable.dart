@@ -41,7 +41,12 @@ class Observable<EventName> {
     final list = _listeners[eventName];
     if (list != null) {
       for (final f in List.of(list)) {
-        Function.apply(f, args);
+        try {
+          Function.apply(f, args);
+        } catch (e, st) {
+          // ignore: avoid_print
+          print('Warning: Observable listener "$eventName" threw: $e\n$st');
+        }
       }
     }
   }

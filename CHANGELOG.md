@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.5
+
+-   **Resilience**: `readVarString` now uses `utf8.decode(..., allowMalformed: true)` to tolerate invalid UTF-8 sequences (common in cross-platform CRDT string handling), preventing `FormatException` crashes.
+-   **Resilience**: `Observable.emit` catches and logs listener errors (e.g. signature mismatches) instead of crashing the app. This safeguards `Doc` update propogation.
+
 ## 1.1.4
 
 -   **Fix**: `StructRange.refs` was created as a fixed-length list via `List.filled()`, causing `refs.clear()` to throw `"Cannot clear a fixed-length list"` inside `_integrateStructs.addStackToRestSS()`. This silently dropped specific update packets (e.g. certain journal pages would never sync). Fixed by adding `growable: true` and making `refs` non-final.

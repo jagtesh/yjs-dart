@@ -110,7 +110,7 @@ String readVarString(Decoder decoder) {
   final len = readVarUint(decoder);
   final bytes = decoder.arr.sublist(decoder.pos, decoder.pos + len);
   decoder.pos += len;
-  return utf8.decode(bytes);
+  return utf8.decode(bytes, allowMalformed: true);
 }
 
 /// Read a [Uint8List] prefixed with its length as a varUint.
