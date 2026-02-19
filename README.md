@@ -48,10 +48,6 @@ This library aims for 1:1 parity with the official JavaScript client.
 | **Binary Encoding** | ✅ Supported | Uint8Array optimization |
 | **Deltas** | 🚧 IP | `toDelta` in progress |
 
-## Differences
-
--   **Unified YType**: Instead of separate classes for `YArray`, `YMap`, `YText`, etc., this library uses a single `YType` class that handles all shared type operations. This simplifies the codebase while maintaining functionality.
-
 ## License
 
 BSD 3-Clause License. Copyright (c) 2026 Jagtesh Chadha.
