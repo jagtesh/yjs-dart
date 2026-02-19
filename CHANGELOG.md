@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.8
+
+-   **Fix**: `yjsReadUpdate` now executes the `pendingStructs` retry **outside** the `transact` callback. Previously calling `applyUpdateV2` inside the callback caused unbounded recursion (the nested call reused the same transaction via `doc.currentTransaction != null`, and if the retried update itself had unresolved deps it would set `retry=true` again and recurse infinitely — the root cause of the page-click hang).
+
 ## 1.1.7
 
 -   **Fix**: `Skip.integrateInto` was calling `addToIdSet` as a method on `IdSet` — it is a free function. Fixed to call `addToIdSet(store.skips, client, clock, length)` correctly.

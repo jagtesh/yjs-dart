@@ -276,11 +276,11 @@ void yjsReadUpdate(
   dynamic structDecoder,
 ]) {
   structDecoder ??= UpdateDecoderV2(decoder);
+  var retry = false;
   transact(
     ydoc,
     (transaction) {
       transaction.local = false;
-      var retry = false;
       // ignore: avoid_dynamic_calls
       final store = transaction.doc.store as StructStore;
       final ss = readStructSet(structDecoder, transaction.doc);
@@ -343,15 +343,22 @@ void yjsReadUpdate(
       } else {
         store.pendingDs = dsRest;
       }
-      if (retry) {
-        final update = store.pendingStructs!.update;
-        store.pendingStructs = null;
-        applyUpdateV2(transaction.doc, update);
-      }
+      // NOTE: do NOT call applyUpdateV2 here — doing so inside the transact
+      // callback causes unbounded recursion: transact() reuses the current
+      // transaction for nested calls, and the retried update may itself set
+      // pendingStructs → retry again, spinning forever.
     },
     transactionOrigin,
     false,
   );
+  // Retry is done OUTSIDE the transaction so each attempt gets a fresh one.
+  if (retry) {
+    // ignore: avoid_dynamic_calls
+    final store = (ydoc as dynamic).store as StructStore;
+    final update = store.pendingStructs!.update;
+    store.pendingStructs = null;
+    applyUpdateV2(ydoc, update);
+  }
 }
 
 
