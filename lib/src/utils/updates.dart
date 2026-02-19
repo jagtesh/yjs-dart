@@ -262,13 +262,14 @@ void writeClientsStructs(
 }
 
 // ---------------------------------------------------------------------------
-// readUpdateV2 / readUpdate
+// readUpdate
 // ---------------------------------------------------------------------------
 
-/// Read and apply a document update (V2 format).
+/// Read and apply a document update using the provided [structDecoder].
+/// Defaults to V2 if no decoder is supplied.
 ///
-/// Mirrors: `readUpdateV2` in encoding.js
-void readUpdateV2(
+/// Mirrors: `readUpdateV2` in encoding.js (renamed — works with any decoder version)
+void yjsReadUpdate(
   decoding.Decoder decoder,
   dynamic ydoc,
   Object? transactionOrigin, [
@@ -353,13 +354,6 @@ void readUpdateV2(
   );
 }
 
-/// Read and apply a document update (V1 format).
-///
-/// Mirrors: `readUpdate` in encoding.js
-void readUpdate(
-    decoding.Decoder decoder, dynamic ydoc, Object? transactionOrigin) {
-  readUpdateV2(decoder, ydoc, transactionOrigin, UpdateDecoderV1(decoder));
-}
 
 // ---------------------------------------------------------------------------
 // applyUpdate / applyUpdateV2
@@ -378,7 +372,7 @@ void applyUpdateV2(
   final structDecoder = decoderFactory != null
       ? decoderFactory(decoder)
       : UpdateDecoderV2(decoder);
-  readUpdateV2(decoder, ydoc, transactionOrigin, structDecoder);
+  yjsReadUpdate(decoder, ydoc, transactionOrigin, structDecoder);
 }
 
 /// Apply a binary update to [ydoc] (V1 format).
@@ -387,7 +381,7 @@ void applyUpdateV2(
 void applyUpdate(dynamic ydoc, Uint8List update,
     [Object? transactionOrigin]) {
   final decoder = decoding.createDecoder(update);
-  readUpdateV2(
+  yjsReadUpdate(
       decoder, ydoc, transactionOrigin, UpdateDecoderV1(decoder));
 }
 
