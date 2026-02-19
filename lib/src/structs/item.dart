@@ -3,6 +3,8 @@
 /// Mirrors: yjs/src/structs/Item.js (v14.0.0-22)
 library;
 
+import 'dart:convert' show jsonEncode;
+
 import '../structs/abstract_struct.dart';
 import '../structs/content.dart' show ContentType;
 import '../structs/gc.dart';
@@ -13,6 +15,7 @@ import '../utils/update_decoder.dart';
 import '../utils/transaction.dart';
 import '../utils/struct_store.dart'
     show getState, getItem, getItemCleanStart, getItemCleanEnd, addStructToStore, replaceStruct, findIndexSS;
+import '../y_type.dart' show readYType;
 
 // ---------------------------------------------------------------------------
 // Binary bit constants (mirrors lib0/binary.js)
@@ -78,7 +81,7 @@ void keepItem(Item? item, bool keep) {
   while (item != null && item.keep != keep) {
     item.keep = keep;
     // ignore: avoid_dynamic_calls
-    final parentItem = (item.parent as dynamic)?._item as Item?;
+    final parentItem = (item.parent as dynamic)?.yItem as Item?;
     item = parentItem;
   }
 }
@@ -116,7 +119,7 @@ Item splitItem(Transaction? transaction, Item leftItem, int diff) {
     transaction.mergeStructs.add(rightItem);
     if (rightItem.parentSub != null && rightItem.right == null) {
       // ignore: avoid_dynamic_calls
-      (rightItem.parent as dynamic)._map[rightItem.parentSub] = rightItem;
+      (rightItem.parent as dynamic).yMap[rightItem.parentSub] = rightItem;
     }
   } else {
     rightItem.left = null;
@@ -168,7 +171,7 @@ Item? redoItem(
     return getItemCleanStart(transaction, redone) as Item?;
   }
   // ignore: avoid_dynamic_calls
-  Item? parentItem = (item.parent as dynamic)?._item as Item?;
+  Item? parentItem = (item.parent as dynamic)?.yItem as Item?;
   Item? left;
   Item? right;
 
@@ -194,11 +197,11 @@ Item? redoItem(
     while (left != null) {
       Item? leftTrace = left;
       // ignore: avoid_dynamic_calls
-      while (leftTrace != null && (leftTrace.parent as dynamic)?._item != parentItem) {
+      while (leftTrace != null && (leftTrace.parent as dynamic)?.yItem != parentItem) {
         leftTrace = leftTrace.redone == null ? null : getItemCleanStart(transaction, leftTrace.redone!) as Item?;
       }
       // ignore: avoid_dynamic_calls
-      if (leftTrace != null && (leftTrace.parent as dynamic)?._item == parentItem) {
+      if (leftTrace != null && (leftTrace.parent as dynamic)?.yItem == parentItem) {
         left = leftTrace;
         break;
       }
@@ -207,11 +210,11 @@ Item? redoItem(
     while (right != null) {
       Item? rightTrace = right;
       // ignore: avoid_dynamic_calls
-      while (rightTrace != null && (rightTrace.parent as dynamic)?._item != parentItem) {
+      while (rightTrace != null && (rightTrace.parent as dynamic)?.yItem != parentItem) {
         rightTrace = rightTrace.redone == null ? null : getItemCleanStart(transaction, rightTrace.redone!) as Item?;
       }
       // ignore: avoid_dynamic_calls
-      if (rightTrace != null && (rightTrace.parent as dynamic)?._item == parentItem) {
+      if (rightTrace != null && (rightTrace.parent as dynamic)?.yItem == parentItem) {
         right = rightTrace;
         break;
       }
@@ -241,7 +244,7 @@ Item? redoItem(
       }
     } else {
       // ignore: avoid_dynamic_calls
-      left = (parentType as dynamic)._map[item.parentSub] as Item?;
+      left = (parentType as dynamic).yMap[item.parentSub] as Item?;
     }
   }
 
@@ -440,13 +443,13 @@ class Item extends AbstractStruct {
           o = leftPtr.right;
         } else if (parentSub != null) {
           // ignore: avoid_dynamic_calls
-          o = (parent as dynamic)._map[parentSub] as AbstractStruct?;
+          o = (parent as dynamic).yMap[parentSub] as AbstractStruct?;
           while (o != null && (o as Item?)?.left != null) {
             o = (o as Item).left;
           }
         } else {
           // ignore: avoid_dynamic_calls
-          o = (parent as dynamic)._start as AbstractStruct?;
+          o = (parent as dynamic).yStart as AbstractStruct?;
         }
 
         final conflictingItems = <Item>{};
@@ -488,15 +491,15 @@ class Item extends AbstractStruct {
         AbstractStruct? r;
         if (parentSub != null) {
           // ignore: avoid_dynamic_calls
-          r = (parent as dynamic)._map[parentSub] as AbstractStruct?;
+          r = (parent as dynamic).yMap[parentSub] as AbstractStruct?;
           while (r != null && (r as Item?)?.left != null) {
             r = (r as Item).left;
           }
         } else {
           // ignore: avoid_dynamic_calls
-          r = (parent as dynamic)._start as AbstractStruct?;
+          r = (parent as dynamic).yStart as AbstractStruct?;
           // ignore: avoid_dynamic_calls
-          (parent as dynamic)._start = this;
+          (parent as dynamic).yStart = this;
         }
         right = r;
       }
@@ -505,7 +508,7 @@ class Item extends AbstractStruct {
         (right as Item).left = this;
       } else if (parentSub != null) {
         // ignore: avoid_dynamic_calls
-        (parent as dynamic)._map[parentSub] = this;
+        (parent as dynamic).yMap[parentSub] = this;
         if (left != null) {
           (left as Item).delete(tr);
         }
@@ -514,7 +517,7 @@ class Item extends AbstractStruct {
       // Adjust parent length
       if (parentSub == null && countable && !deleted) {
         // ignore: avoid_dynamic_calls
-        (parent as dynamic)._length += length;
+        (parent as dynamic).yLength += length;
       }
 
       addToIdSet(tr.insertSet, id.client, id.clock, length);
@@ -523,7 +526,7 @@ class Item extends AbstractStruct {
       addChangedTypeToTransaction(tr, parent as dynamic, parentSub);
 
       // ignore: avoid_dynamic_calls
-      final parentItemDeleted = (parent as dynamic)?._item?.deleted == true;
+      final parentItemDeleted = (parent as dynamic)?.yItem?.deleted == true;
       if (parentItemDeleted || (parentSub != null && right != null)) {
         delete(tr);
       }
@@ -543,7 +546,7 @@ class Item extends AbstractStruct {
       final p = parent as dynamic;
       if (countable && parentSub == null) {
         // ignore: avoid_dynamic_calls
-        p._length -= length;
+        p.yLength -= length;
       }
       markDeleted();
       addToIdSet(transaction.deleteSet, id.client, id.clock, length);
@@ -600,10 +603,10 @@ class Item extends AbstractStruct {
       final p = parent;
       if (p != null) {
         // ignore: avoid_dynamic_calls
-        final parentItemDyn = (p as dynamic)._item;
+        final parentItemDyn = (p as dynamic).yItem;
         if (parentItemDyn == null) {
           // ignore: avoid_dynamic_calls
-          final ykey = _findRootTypeKey(p);
+          final ykey = findRootTypeKeyImpl(p);
           // ignore: avoid_dynamic_calls
           encoder.writeParentInfo(true);
           // ignore: avoid_dynamic_calls
@@ -655,7 +658,7 @@ class Item extends AbstractStruct {
       return false;
     }
     // ignore: avoid_dynamic_calls
-    final searchMarker = (parent as dynamic)?._searchMarker as List<dynamic>?;
+    final searchMarker = (parent as dynamic)?.searchMarker as List<dynamic>?;
     if (searchMarker != null) {
       for (final marker in searchMarker) {
         // ignore: avoid_dynamic_calls
@@ -698,10 +701,22 @@ class _ContentDeleted implements AbstractContent {
   @override AbstractContent copy() => _ContentDeleted(length);
   @override AbstractContent splice(int offset) => _ContentDeleted(length - offset);
   @override bool mergeWith(AbstractContent right) => false;
-  @override void integrate(Transaction transaction, Item item) {}
+  @override void integrate(Transaction transaction, Item item) {
+    // Mirrors: ContentDeleted.integrate in ContentDeleted.js
+    addToIdSet(transaction.deleteSet, item.id.client, item.id.clock, length);
+    item.markDeleted();
+  }
   @override void delete(Transaction transaction) {}
   @override void gc(dynamic store) {}
-  @override void write(dynamic encoder, int offset) {}
+
+  @override
+  void write(dynamic encoder, int offset) {
+    // Mirrors: ContentDeleted.write(encoder, offset, offsetEnd) = encoder.writeLen(len - offset - offsetEnd)
+    // In Dart we only pass offset; offsetEnd is handled by Item.write's clock slicing above,
+    // and for non-sliced writes offsetEnd = 0. So: writeLen(length - offset).
+    // ignore: avoid_dynamic_calls
+    encoder.writeLen(length - offset);
+  }
   @override int getRef() => 1;
 }
 
@@ -793,10 +808,11 @@ AbstractContent readContentFormat(dynamic decoder) {
 }
 
 /// Read type content from [decoder].
+/// Creates a real ContentType wrapping a real YType.
+///
+/// Mirrors: `readContentType` in ContentType.js
 AbstractContent readContentType(dynamic decoder) {
-  // ignore: avoid_dynamic_calls
-  final typeRef = decoder.readTypeRef() as int;
-  return _ContentTypeStub(typeRef);
+  return ContentType(readYType(decoder));
 }
 
 /// Read any content from [decoder].
@@ -835,7 +851,17 @@ class _ContentJSONStub implements AbstractContent {
   @override void integrate(Transaction t, Item i) {}
   @override void delete(Transaction t) {}
   @override void gc(dynamic s) {}
-  @override void write(dynamic e, int o) {}
+  @override void write(dynamic encoder, int offset) {
+    // Mirrors: ContentJSON.write
+    final len = arr.length - offset;
+    // ignore: avoid_dynamic_calls
+    encoder.writeLen(len);
+    for (var i = offset; i < arr.length; i++) {
+      final c = arr[i];
+      // ignore: avoid_dynamic_calls
+      encoder.writeString(c == null ? 'undefined' : jsonEncode(c));
+    }
+  }
   @override int getRef() => 2;
 }
 
@@ -851,12 +877,16 @@ class _ContentBinaryStub implements AbstractContent {
   @override void integrate(Transaction t, Item i) {}
   @override void delete(Transaction t) {}
   @override void gc(dynamic s) {}
-  @override void write(dynamic e, int o) {}
+  @override void write(dynamic encoder, int offset) {
+    // Mirrors: ContentBinary.write
+    // ignore: avoid_dynamic_calls
+    encoder.writeBuffer(buf);
+  }
   @override int getRef() => 3;
 }
 
 class _ContentStringStub implements AbstractContent {
-  final String str;
+  String str;
   _ContentStringStub(this.str);
   @override int get length => str.length;
   @override bool isCountable() => true;
@@ -865,15 +895,19 @@ class _ContentStringStub implements AbstractContent {
   @override AbstractContent splice(int offset) => _ContentStringStub(str.substring(offset));
   @override bool mergeWith(AbstractContent right) {
     if (right is _ContentStringStub) {
-      // Cannot mutate final field; mergeWith is handled at Item level
-      return false;
+      str = str + right.str;
+      return true;
     }
     return false;
   }
   @override void integrate(Transaction t, Item i) {}
   @override void delete(Transaction t) {}
   @override void gc(dynamic s) {}
-  @override void write(dynamic e, int o) {}
+  @override void write(dynamic encoder, int offset) {
+    // Mirrors: ContentString.write
+    // ignore: avoid_dynamic_calls
+    encoder.writeString(str.substring(offset));
+  }
   @override int getRef() => 4;
 }
 
@@ -889,7 +923,11 @@ class _ContentEmbedStub implements AbstractContent {
   @override void integrate(Transaction t, Item i) {}
   @override void delete(Transaction t) {}
   @override void gc(dynamic s) {}
-  @override void write(dynamic e, int o) {}
+  @override void write(dynamic encoder, int offset) {
+    // Mirrors: ContentEmbed.write
+    // ignore: avoid_dynamic_calls
+    encoder.writeJSON(embed);
+  }
   @override int getRef() => 5;
 }
 
@@ -906,39 +944,50 @@ class _ContentFormatStub implements AbstractContent {
   @override void integrate(Transaction t, Item i) {}
   @override void delete(Transaction t) {}
   @override void gc(dynamic s) {}
-  @override void write(dynamic e, int o) {}
+  @override void write(dynamic encoder, int offset) {
+    // Mirrors: ContentFormat.write
+    // ignore: avoid_dynamic_calls
+    encoder.writeKey(key);
+    // ignore: avoid_dynamic_calls
+    encoder.writeJSON(value);
+  }
   @override int getRef() => 6;
 }
 
-class _ContentTypeStub implements AbstractContent {
-  final int typeRef;
-  _ContentTypeStub(this.typeRef);
-  @override int get length => 1;
-  @override bool isCountable() => true;
-  @override List<Object?> getContent() => [];
-  @override AbstractContent copy() => _ContentTypeStub(typeRef);
-  @override AbstractContent splice(int offset) => _ContentTypeStub(typeRef);
-  @override bool mergeWith(AbstractContent right) => false;
-  @override void integrate(Transaction t, Item i) {}
-  @override void delete(Transaction t) {}
-  @override void gc(dynamic s) {}
-  @override void write(dynamic e, int o) {}
-  @override int getRef() => 7;
-}
+
 
 class _ContentAnyStub implements AbstractContent {
-  final List<Object?> arr;
+  List<Object?> arr;
   _ContentAnyStub(this.arr);
   @override int get length => arr.length;
   @override bool isCountable() => true;
   @override List<Object?> getContent() => arr;
   @override AbstractContent copy() => _ContentAnyStub(List.of(arr));
-  @override AbstractContent splice(int offset) => _ContentAnyStub(arr.sublist(offset));
-  @override bool mergeWith(AbstractContent right) => false;
+  @override AbstractContent splice(int offset) {
+    final right = _ContentAnyStub(arr.sublist(offset));
+    arr = arr.sublist(0, offset);
+    return right;
+  }
+  @override bool mergeWith(AbstractContent right) {
+    if (right is _ContentAnyStub) {
+      arr.addAll(right.arr);
+      return true;
+    }
+    return false;
+  }
   @override void integrate(Transaction t, Item i) {}
   @override void delete(Transaction t) {}
   @override void gc(dynamic s) {}
-  @override void write(dynamic e, int o) {}
+  @override void write(dynamic encoder, int offset) {
+    // Mirrors: ContentAny.write
+    final len = arr.length - offset;
+    // ignore: avoid_dynamic_calls
+    encoder.writeLen(len);
+    for (var i = offset; i < arr.length; i++) {
+      // ignore: avoid_dynamic_calls
+      encoder.writeAny(arr[i]);
+    }
+  }
   @override int getRef() => 8;
 }
 
@@ -954,7 +1003,11 @@ class _ContentDocStub implements AbstractContent {
   @override void integrate(Transaction t, Item i) {}
   @override void delete(Transaction t) {}
   @override void gc(dynamic s) {}
-  @override void write(dynamic e, int o) {}
+  @override void write(dynamic encoder, int offset) {
+    // Mirrors: ContentDoc.write
+    // ignore: avoid_dynamic_calls
+    encoder.writeAny(doc);
+  }
   @override int getRef() => 9;
 }
 
@@ -969,7 +1022,7 @@ class _ContentDocStub implements AbstractContent {
 /// Mirrors: `findRootTypeKey` in types/AbstractType.js
 String Function(dynamic) _findRootTypeKeyFn = (type) {
   // ignore: avoid_dynamic_calls
-  final doc = (type as dynamic)._doc;
+  final doc = (type as dynamic).doc;
   if (doc == null) throw StateError('Type is not integrated into a document');
   // ignore: avoid_dynamic_calls
   for (final entry in (doc.share as Map).entries) {
@@ -979,7 +1032,7 @@ String Function(dynamic) _findRootTypeKeyFn = (type) {
 };
 
 /// Find the root key for [type] in its document.
-String _findRootTypeKey(dynamic type) => _findRootTypeKeyFn(type);
+String findRootTypeKeyImpl(dynamic type) => _findRootTypeKeyFn(type);
 
 /// Register a custom [findRootTypeKey] implementation (called from y_type.dart).
 void setFindRootTypeKey(String Function(dynamic) fn) {
