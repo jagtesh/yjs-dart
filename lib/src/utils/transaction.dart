@@ -558,7 +558,7 @@ void _cleanupTransactions(List<Transaction> transactionCleanups, int i) {
         if (dEHLen > 0 && (typeItem == null || !typeItem.deleted)) {
           // Find event whose target matches this type, or create a fallback
           // ignore: avoid_dynamic_calls
-          final deepEvent = events.cast<YEvent>().firstWhere(
+          final deepEvent = events.cast<YEvent<dynamic>>().firstWhere(
             (e) => e.target == type,
             orElse: () => YEvent(type as YType, transaction, {null}),
           );

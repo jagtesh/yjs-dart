@@ -243,5 +243,3 @@ int findIndexCleanStart(
   return index;
 }
 
-// Marker interface for structs that can be split
-abstract class _SplittableStruct {}
