@@ -17,12 +17,10 @@ import '../structs/item.dart';
 import '../utils/event_handler.dart';
 import '../utils/doc.dart';
 import '../utils/id.dart';
-import '../utils/snapshot.dart';
 import '../utils/struct_store.dart'
-    show getState, getItemCleanStart, StructStore;
+    show getState, getItemCleanStart;
 import '../utils/transaction.dart'
     hide callEventHandlerListeners;
-import '../utils/update_decoder.dart';
 import '../utils/update_encoder.dart';
 import '../utils/y_event.dart';
 import '../utils/y_structure.dart';
