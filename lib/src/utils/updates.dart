@@ -19,6 +19,7 @@ import '../utils/struct_set.dart'
     show StructSet, StructRange, readStructSet, removeRangesFromStructSet;
 import '../utils/struct_store.dart'
     show
+        StructStore,
         addStructToStore,
         getState,
         getStateVector,
