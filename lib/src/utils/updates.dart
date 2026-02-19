@@ -20,7 +20,6 @@ import '../utils/struct_set.dart'
 import '../utils/struct_store.dart'
     show
         StructStore,
-        addStructToStore,
         getState,
         getStateVector,
         findIndexSS;
@@ -29,7 +28,6 @@ import '../utils/update_decoder.dart'
     show UpdateDecoderV1, UpdateDecoderV2, IdSetDecoderV1;
 import '../utils/update_encoder.dart'
     show
-        AbstractUpdateEncoder,
         UpdateEncoderV1,
         UpdateEncoderV2,
         IdSetEncoderV1,
