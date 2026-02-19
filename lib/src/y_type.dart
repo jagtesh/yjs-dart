@@ -7,6 +7,8 @@
 /// using idiomatic Dart APIs.
 library;
 
+import 'dart:convert' show jsonEncode;
+
 import 'dart:typed_data';
 
 import 'structs/abstract_struct.dart';
@@ -14,8 +16,9 @@ import 'structs/content.dart';
 import 'structs/item.dart';
 import 'utils/event_handler.dart';
 import 'utils/id.dart';
-import 'utils/id_set.dart' show createIdSet;
-import 'utils/struct_store.dart' show getState, getItemCleanStart;
+import 'utils/id_set.dart' show createIdSet, mergeIdSets;
+import 'utils/struct_store.dart'
+    show getState, getItemCleanStart, createDeleteSetFromStructStore;
 import 'utils/transaction.dart'
     hide callEventHandlerListeners;
 import 'utils/update_decoder.dart';
@@ -56,6 +59,15 @@ bool equalAttrs(Object? a, Object? b) {
     return true;
   }
   return false;
+}
+
+/// JSON-encode a value for toString output.
+String _jsonEncode(Object? v) {
+  try {
+    return jsonEncode(v);
+  } catch (_) {
+    return v.toString();
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -110,18 +122,18 @@ ArraySearchMarker _markPosition(
 ///
 /// Mirrors: `findMarker` in ytype.js
 ArraySearchMarker? findMarker(YType yarray, int index) {
-  if (yarray._start == null ||
+  if (yarray.yStart == null ||
       index == 0 ||
-      yarray._searchMarker == null) {
+      yarray.searchMarker == null) {
     return null;
   }
-  final markers = yarray._searchMarker!;
+  final markers = yarray.searchMarker!;
   ArraySearchMarker? marker;
   if (markers.isNotEmpty) {
     marker = markers.reduce((a, b) =>
         (index - a.index).abs() < (index - b.index).abs() ? a : b);
   }
-  var p = yarray._start!;
+  var p = yarray.yStart!;
   var pindex = 0;
   if (marker != null) {
     p = marker.p;
@@ -154,7 +166,7 @@ ArraySearchMarker? findMarker(YType yarray, int index) {
   }
   if (marker != null &&
       (marker.index - pindex).abs() <
-          (yarray._length / _maxSearchMarker)) {
+          (yarray.yLength / _maxSearchMarker)) {
     _overwriteMarker(marker, p, pindex);
     return marker;
   } else {
@@ -203,70 +215,70 @@ class YType<EventType> {
   String? name;
 
   /// The first item in the linked list of this type's content.
-  Item? _start;
+  Item? yStart;
 
   /// The map of key → item for map-like types.
-  final Map<String, Item> _map = {};
+  final Map<String, Item> yMap = {};
 
   /// The document this type belongs to.
   dynamic doc; // Doc — avoids circular import
 
   /// The item that contains this type (if it's a nested type).
-  Item? _item;
+  Item? yItem;
 
   /// The length of this type's content.
-  int _length = 0;
+  int yLength = 0;
 
   /// Public accessor for the first item in the linked list.
-  Item? get start => _start;
+  Item? get start => yStart;
 
   /// Event handlers.
-  final EventHandler<EventType, Transaction> _eH = createEventHandler();
+  final EventHandler<EventType, Transaction> eH = createEventHandler();
 
   /// Deep event handlers.
-  final EventHandler<List<YEvent<dynamic>>, Transaction> _dEH =
+  final EventHandler<YEvent<dynamic>, Transaction> dEH =
       createEventHandler();
 
   /// Search markers for fast position lookup.
-  List<ArraySearchMarker>? _searchMarker;
+  List<ArraySearchMarker>? searchMarker;
 
   /// Whether this YText contains formatting attributes.
-  bool _hasFormatting = false;
+  bool hasFormatting = false;
 
   /// The legacy type reference ID (for binary serialization).
-  int _legacyTypeRef = typeRefXmlFragment;
+  int legacyTypeRef = typeRefXmlFragment;
 
   /// Preliminary delta to apply when integrated (before doc is set).
-  Object? _prelim;
+  Object? prelim;
 
   YType([this.name]) {
-    _searchMarker = [];
-    _legacyTypeRef = name == null ? typeRefXmlFragment : typeRefXmlElement;
+    searchMarker = [];
+    legacyTypeRef = name == null ? typeRefXmlFragment : typeRefXmlElement;
   }
 
   /// The length of this type's content.
   int get length {
     doc ?? warnPrematureAccess();
-    return _length;
+    return yLength;
   }
 
   /// Returns the parent type, or null if this is a root type.
   YType<dynamic>? get parent {
-    return _item != null ? _item!.parent as YType<dynamic>? : null;
+    return yItem != null ? yItem!.parent as YType<dynamic>? : null;
   }
 
   /// Public accessor for the item that contains this type.
-  Item? get item => _item;
+  Item? get item => yItem;
 
   /// Integrate this type into the Yjs instance.
   ///
-  /// Mirrors: `_integrate` in ytype.js
+  /// Mirrors: `integrate` in ytype.js
   void integrate(dynamic y, Item? item) {
     doc = y;
-    _item = item;
-    if (_prelim != null) {
+    yItem = item;
+    if (prelim != null) {
       // Apply preliminary delta if any
-      _prelim = null;
+      prelim = null;
     }
   }
 
@@ -275,14 +287,14 @@ class YType<EventType> {
 
   /// Creates YEvent and calls all type observers.
   ///
-  /// Mirrors: `_callObserver` in ytype.js
+  /// Mirrors: `callObserver` in ytype.js
   void callObserver(Transaction transaction, Set<String?> parentSubs) {
     final event = YEvent<dynamic>(this, transaction, parentSubs);
     callTypeObservers(this, transaction, event);
-    if (!transaction.local && _searchMarker != null) {
-      _searchMarker!.clear();
+    if (!transaction.local && searchMarker != null) {
+      searchMarker!.clear();
     }
-    if (!transaction.local && _hasFormatting) {
+    if (!transaction.local && hasFormatting) {
       transaction.needFormattingCleanup = true;
     }
   }
@@ -290,26 +302,26 @@ class YType<EventType> {
   /// Observe changes to this type.
   void Function(EventType, Transaction) observe(
       void Function(EventType event, Transaction tr) f) {
-    addEventHandlerListener(_eH, f);
+    addEventHandlerListener(eH, f);
     return f;
   }
 
   /// Stop observing changes to this type.
   void unobserve(void Function(EventType event, Transaction tr) f) {
-    removeEventHandlerListener(_eH, f);
+    removeEventHandlerListener(eH, f);
   }
 
   /// Observe changes to this type and all nested types.
-  void Function(List<YEvent<dynamic>>, Transaction) observeDeep(
-      void Function(List<YEvent<dynamic>> events, Transaction tr) f) {
-    addEventHandlerListener(_dEH, f);
+  void Function(YEvent<dynamic>, Transaction) observeDeep(
+      void Function(YEvent<dynamic> event, Transaction tr) f) {
+    addEventHandlerListener(dEH, f);
     return f;
   }
 
   /// Stop observing deep changes.
   void unobserveDeep(
-      void Function(List<YEvent<dynamic>> events, Transaction tr) f) {
-    removeEventHandlerListener(_dEH, f);
+      void Function(YEvent<dynamic> event, Transaction tr) f) {
+    removeEventHandlerListener(dEH, f);
   }
 
   /// Write this type to [encoder].
@@ -317,24 +329,26 @@ class YType<EventType> {
   /// Mirrors: `_write` in ytype.js
   void write(dynamic encoder) {
     // ignore: avoid_dynamic_calls
-    encoder.writeTypeRef(_legacyTypeRef);
-    if (_legacyTypeRef == typeRefXmlElement ||
-        _legacyTypeRef == typeRefXmlHook) {
+    encoder.writeTypeRef(legacyTypeRef);
+    if (legacyTypeRef == typeRefXmlElement ||
+        legacyTypeRef == typeRefXmlHook) {
       // ignore: avoid_dynamic_calls
       encoder.writeKey(name ?? '');
     }
   }
 
   /// Convert this type to JSON.
-  Object? toJson() {
+  ///
+  /// Mirrors: `toJSON` in ytype.js
+  Map<String, Object?> toJson() {
     final res = <String, Object?>{};
     if (name != null) res['name'] = name;
-    if (_length > 0) {
-      res['children'] = typeListSlice(this, 0, _length)
+    if (yLength > 0) {
+      res['children'] = toArray()
           .map((c) => c is YType ? c.toJson() : c)
           .toList();
     }
-    final attrs = typeMapGetAll(this);
+    final attrs = getAttrs();
     if (attrs.isNotEmpty) {
       res['attrs'] = attrs.map((k, v) => MapEntry(k, v is YType ? v.toJson() : v));
     }
@@ -343,12 +357,344 @@ class YType<EventType> {
 
   @override
   String toString() {
-    final children = typeListSlice(this, 0, _length)
-        .map((c) => c is String ? c : c is YType ? c.toString() : c.toString())
+    final attrs = <List<Object>>[];
+    forEachAttr((val, key, _) {
+      attrs.add([key, val is YType ? val.toString() : _jsonEncode(val)]);
+    });
+    final attrsString = (attrs.isNotEmpty ? ' ' : '') +
+        (attrs..sort((a, b) => (a[0] as String).compareTo(b[0] as String)))
+            .map((a) => '${a[0]}=${a[1]}')
+            .join(' ');
+    final children = toArray()
+        .map((c) => c is String
+            ? c
+            : c is YType
+                ? c.toString()
+                : _jsonEncode(c))
         .join('');
-    if (name == null) return children;
-    if (_length == 0) return '<$name />';
-    return '<$name>$children</$name>';
+    if (name == null && attrs.isEmpty) return children;
+    if (yLength == 0) return '<${name ?? ''}$attrsString />';
+    return '<${name ?? ''}$attrsString>$children</${name ?? ''}>';
+  }
+
+  // -------------------------------------------------------------------------
+  // Array/list operations (YArray-like)
+  // -------------------------------------------------------------------------
+
+  /// Inserts content at [index].
+  ///
+  /// Mirrors: `insert` in ytype.js
+  void insert(int index, List<Object?> content) {
+    if (doc != null) {
+      // ignore: avoid_dynamic_calls
+      doc.transact((Transaction tr) {
+        typeListInsertGenerics(tr, this, index, content);
+      });
+    }
+  }
+
+  /// Appends content to the end.
+  ///
+  /// Mirrors: `push` in ytype.js
+  void push(List<Object?> content) {
+    insert(length, content);
+  }
+
+  /// Prepends content to the beginning.
+  ///
+  /// Mirrors: `unshift` in ytype.js
+  void unshift(List<Object?> content) {
+    insert(0, content);
+  }
+
+  /// Deletes [length] elements starting at [index].
+  ///
+  /// Mirrors: `delete` in ytype.js
+  void delete(int index, [int length = 1]) {
+    if (doc != null) {
+      // ignore: avoid_dynamic_calls
+      doc.transact((Transaction tr) {
+        typeListDelete(tr, this, index, length);
+      });
+    }
+  }
+
+  /// Returns the element at [index].
+  ///
+  /// Mirrors: `get` in ytype.js
+  Object? get(int index) {
+    return typeListGet(this, index);
+  }
+
+  /// Returns a portion of the content as a list.
+  ///
+  /// Mirrors: `slice` in ytype.js
+  List<Object?> slice([int start = 0, int? end]) {
+    return typeListSlice(this, start, end ?? length);
+  }
+
+  /// Returns all children as a list.
+  ///
+  /// Mirrors: `toArray` in ytype.js
+  List<Object?> toArray() {
+    return typeListSlice(this, 0, yLength);
+  }
+
+  /// Maps each child element with function [f].
+  ///
+  /// Mirrors: `map` in ytype.js
+  List<R> mapChildren<R>(R Function(Object?, int) f) {
+    final arr = toArray();
+    return List.generate(arr.length, (i) => f(arr[i], i));
+  }
+
+  /// Executes [f] on every child element.
+  ///
+  /// Mirrors: `forEach` in ytype.js
+  void forEachChild(void Function(Object?, int) f) {
+    final arr = toArray();
+    for (var i = 0; i < arr.length; i++) {
+      f(arr[i], i);
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Map/attribute operations (YMap-like)
+  // -------------------------------------------------------------------------
+
+  /// Sets or updates an attribute.
+  ///
+  /// Mirrors: `setAttr` in ytype.js
+  void setAttr(String attributeName, Object? attributeValue) {
+    if (doc != null) {
+      // ignore: avoid_dynamic_calls
+      doc.transact((Transaction tr) {
+        typeMapSet(tr, this, attributeName, attributeValue);
+      });
+    }
+  }
+
+  /// Returns the attribute value for [attributeName], or null if not set.
+  ///
+  /// Mirrors: `getAttr` in ytype.js
+  Object? getAttr(String attributeName) {
+    return typeMapGet(this, attributeName);
+  }
+
+  /// Removes an attribute.
+  ///
+  /// Mirrors: `deleteAttr` in ytype.js
+  void deleteAttr(String attributeName) {
+    if (doc != null) {
+      // ignore: avoid_dynamic_calls
+      doc.transact((Transaction tr) {
+        typeMapDelete(tr, this, attributeName);
+      });
+    }
+  }
+
+  /// Returns whether an attribute exists.
+  ///
+  /// Mirrors: `hasAttr` in ytype.js
+  bool hasAttr(String attributeName) {
+    return typeMapHas(this, attributeName);
+  }
+
+  /// Returns all attribute key-value pairs.
+  ///
+  /// Mirrors: `getAttrs` in ytype.js
+  Map<String, Object?> getAttrs([dynamic snapshot]) {
+    if (snapshot != null) return typeMapGetAllSnapshot(this, snapshot);
+    return typeMapGetAll(this);
+  }
+
+  /// Removes all attributes.
+  ///
+  /// Mirrors: `clearAttrs` in ytype.js
+  void clearAttrs() {
+    if (doc != null) {
+      // ignore: avoid_dynamic_calls
+      doc.transact((Transaction tr) {
+        yMap.forEach((key, item) {
+          if (!item.deleted) {
+            item.delete(tr);
+          }
+        });
+      });
+    }
+  }
+
+  /// Executes [f] on every attribute key-value pair.
+  ///
+  /// Mirrors: `forEachAttr` in ytype.js
+  void forEachAttr(void Function(Object? val, String key, YType ytype) f) {
+    yMap.forEach((key, item) {
+      if (!item.deleted) {
+        final content = item.content.getContent();
+        f(content.isNotEmpty ? content[item.length - 1] : null, key, this);
+      }
+    });
+  }
+
+  /// Returns an iterable of attribute keys.
+  ///
+  /// Mirrors: `attrKeys` in ytype.js
+  Iterable<String> get attrKeys sync* {
+    for (final entry in yMap.entries) {
+      if (!entry.value.deleted) yield entry.key;
+    }
+  }
+
+  /// Returns an iterable of attribute values.
+  ///
+  /// Mirrors: `attrValues` in ytype.js
+  Iterable<Object?> get attrValues sync* {
+    for (final entry in yMap.entries) {
+      if (!entry.value.deleted) {
+        final content = entry.value.content.getContent();
+        yield content.isNotEmpty ? content[entry.value.length - 1] : null;
+      }
+    }
+  }
+
+  /// Returns an iterable of [key, value] pairs.
+  ///
+  /// Mirrors: `attrEntries` in ytype.js
+  Iterable<MapEntry<String, Object?>> get attrEntries sync* {
+    for (final entry in yMap.entries) {
+      if (!entry.value.deleted) {
+        final content = entry.value.content.getContent();
+        yield MapEntry(entry.key,
+            content.isNotEmpty ? content[entry.value.length - 1] : null);
+      }
+    }
+  }
+
+  /// Number of stored attributes.
+  ///
+  /// Mirrors: `attrSize` in ytype.js
+  int get attrSize {
+    var count = 0;
+    for (final item in yMap.values) {
+      if (!item.deleted) count++;
+    }
+    return count;
+  }
+
+  // -------------------------------------------------------------------------
+  // Text formatting
+  // -------------------------------------------------------------------------
+
+  /// Apply formatting to [length] characters starting at [index].
+  ///
+  /// Mirrors: `format` in ytype.js
+  void format(int index, int length, Map<String, Object?> formats) {
+    if (doc != null) {
+      // ignore: avoid_dynamic_calls
+      doc.transact((Transaction tr) {
+        final currPos = ItemTextListPosition(null, yStart, 0, {});
+        // Advance to position [index]
+        var remaining = index;
+        while (remaining > 0 && currPos.right != null) {
+          if (!currPos.right!.deleted && currPos.right!.countable) {
+            if (remaining < currPos.right!.length) {
+              getItemCleanStart(tr,
+                  createID(currPos.right!.id.client, currPos.right!.id.clock + remaining));
+            }
+            remaining -= currPos.right!.length;
+          }
+          currPos.forward();
+        }
+        currPos.formatText(tr, this, length, formats);
+      });
+    }
+  }
+
+  /// Returns the Delta representation of this type (for rich text).
+  ///
+  /// Mirrors: `toDelta` in YText.js
+  List<Map<String, Object?>> toDelta(
+      [dynamic snapshot, dynamic prevSnapshot, Function? computeYChange]) {
+      final ops = <Map<String, Object?>>[];
+      final currentAttributes = <String, Object?>{};
+      final doc = this.doc;
+      var str = '';
+      var node = yStart;
+
+      final dst = <String, Object?>{};
+      if (snapshot != null) {
+        // ignore: avoid_dynamic_calls
+        final ds = snapshot.ds;
+        // ignore: avoid_dynamic_calls
+        final sv = snapshot.sv;
+        // ignore: avoid_dynamic_calls
+        dst.addAll(createDeleteSetFromStructStore(doc!.store));
+        // ignore: avoid_dynamic_calls
+        ds.clients.forEach((client, ranges) {
+          // ignore: avoid_dynamic_calls
+          ranges.getIds().forEach((id) {
+            // ignore: avoid_dynamic_calls
+            dst[client] = mergeIdSets([dst[client], createIdSet(client, id.clock, id.len)]);
+          });
+        });
+      }
+
+      while (node != null) {
+        if (isVisible(node, snapshot) || (prevSnapshot != null && isVisible(node, prevSnapshot))) {
+          if (node.content is ContentFormat) {
+            final content = node.content as ContentFormat;
+            if (content.value == null) {
+              currentAttributes.remove(content.key);
+            } else {
+              currentAttributes[content.key] = content.value;
+            }
+          } else if (node.content is! ContentType && node.content is! ContentEmbed && node.countable && !node.deleted) {
+             final content = node.content;
+             var val = (content as dynamic).getContent();
+             if (content.length > 1 && content is! ContentString) {
+                val = [val];
+             }
+             if (str.isNotEmpty) {
+               ops.add({'insert': str, ...currentAttributes});
+               str = '';
+             }
+             ops.add({'insert': val, ...currentAttributes});
+          } else if (node.content is ContentString && node.countable && !node.deleted) {
+            str += (node.content as ContentString).str;
+          }
+        }
+        node = node.right as Item?;
+      }
+
+      if (str.isNotEmpty) {
+        ops.add({'insert': str, ...currentAttributes});
+      }
+      return ops;
+  }
+
+  // -------------------------------------------------------------------------
+  // Clone
+  // -------------------------------------------------------------------------
+
+  /// Makes a copy of this data type that can be included somewhere else.
+  ///
+  /// Mirrors: `clone` in ytype.js
+  YType<EventType> clone() {
+    final cpy = copy();
+    // Copy array content
+    if (yLength > 0) {
+      final arr = toArray();
+      cpy.insert(0, arr);
+    }
+    // Copy map content
+    yMap.forEach((key, item) {
+      if (!item.deleted) {
+        final content = item.content.getContent();
+        final val = content.isNotEmpty ? content[item.length - 1] : null;
+        cpy.setAttr(key, val is YType ? val.clone() : val);
+      }
+    });
+    return cpy;
   }
 }
 
@@ -365,15 +711,15 @@ void callTypeObservers(
   var t = type;
   while (true) {
     changedParentTypes.putIfAbsent(t, () => []).add(event);
-    if (t._item == null) break;
-    final parent = t._item!.parent;
+    if (t.yItem == null) break;
+    final parent = t.yItem!.parent;
     if (parent is YType) {
       t = parent;
     } else {
       break;
     }
   }
-  callEventHandlerListeners(type._eH, event, transaction);
+  callEventHandlerListeners(type.eH, event, transaction);
 }
 
 // ---------------------------------------------------------------------------
@@ -385,11 +731,11 @@ void callTypeObservers(
 /// Mirrors: `typeListSlice` in ytype.js
 List<Object?> typeListSlice(YType<dynamic> type, int start, int end) {
   type.doc ?? warnPrematureAccess();
-  if (start < 0) start = type._length + start;
-  if (end < 0) end = type._length + end;
+  if (start < 0) start = type.yLength + start;
+  if (end < 0) end = type.yLength + end;
   var len = end - start;
   final cs = <Object?>[];
-  var n = type._start;
+  var n = type.yStart;
   while (n != null && len > 0) {
     if (n.countable && !n.deleted) {
       final c = n.content.getContent();
@@ -418,7 +764,7 @@ List<Object?> typeListSlice(YType<dynamic> type, int start, int end) {
 Object? typeListGet(YType<dynamic> type, int index) {
   type.doc ?? warnPrematureAccess();
   final marker = findMarker(type, index);
-  var n = type._start;
+  var n = type.yStart;
   if (marker != null) {
     n = marker.p;
     index -= marker.index;
@@ -452,7 +798,7 @@ void typeListInsertGenericsAfter(Transaction transaction, YType<dynamic> parent,
   // ignore: avoid_dynamic_calls
   final store = doc.store;
   final right =
-      referenceItem == null ? parent._start : referenceItem.right as Item?;
+      referenceItem == null ? parent.yStart : referenceItem.right as Item?;
 
   var jsonContent = <Object?>[];
 
@@ -527,18 +873,18 @@ void typeListInsertGenericsAfter(Transaction transaction, YType<dynamic> parent,
 /// Mirrors: `typeListInsertGenerics` in ytype.js
 void typeListInsertGenerics(Transaction transaction, YType<dynamic> parent,
     int index, List<Object?> content) {
-  if (index > parent._length) {
+  if (index > parent.yLength) {
     throw RangeError('Length exceeded!');
   }
   if (index == 0) {
-    if (parent._searchMarker != null) {
-      updateMarkerChanges(parent._searchMarker!, index, content.length);
+    if (parent.searchMarker != null) {
+      updateMarkerChanges(parent.searchMarker!, index, content.length);
     }
     return typeListInsertGenericsAfter(transaction, parent, null, content);
   }
   final startIndex = index;
   final marker = findMarker(parent, index);
-  var n = parent._start;
+  var n = parent.yStart;
   if (marker != null) {
     n = marker.p;
     index -= marker.index;
@@ -560,8 +906,8 @@ void typeListInsertGenerics(Transaction transaction, YType<dynamic> parent,
     }
     n = n.right as Item?;
   }
-  if (parent._searchMarker != null) {
-    updateMarkerChanges(parent._searchMarker!, startIndex, content.length);
+  if (parent.searchMarker != null) {
+    updateMarkerChanges(parent.searchMarker!, startIndex, content.length);
   }
   return typeListInsertGenericsAfter(transaction, parent, n, content);
 }
@@ -575,8 +921,8 @@ void typeListInsertGenerics(Transaction transaction, YType<dynamic> parent,
 /// Mirrors: `typeListPushGenerics` in ytype.js
 void typeListPushGenerics(Transaction transaction, YType<dynamic> parent,
     List<Object?> content) {
-  final markers = parent._searchMarker ?? [];
-  Item? n = parent._start;
+  final markers = parent.searchMarker ?? [];
+  Item? n = parent.yStart;
   if (markers.isNotEmpty) {
     final maxMarker = markers.reduce(
         (a, b) => a.index > b.index ? a : b);
@@ -603,7 +949,7 @@ void typeListDelete(
   final startIndex = index;
   final startLength = length;
   final marker = findMarker(parent, index);
-  var n = parent._start;
+  var n = parent.yStart;
   if (marker != null) {
     n = marker.p;
     index -= marker.index;
@@ -634,9 +980,9 @@ void typeListDelete(
   if (length > 0) {
     throw RangeError('Length exceeded!');
   }
-  if (parent._searchMarker != null) {
+  if (parent.searchMarker != null) {
     updateMarkerChanges(
-        parent._searchMarker!, startIndex, -startLength + length);
+        parent.searchMarker!, startIndex, -startLength + length);
   }
 }
 
@@ -648,7 +994,7 @@ void typeListDelete(
 ///
 /// Mirrors: `typeMapDelete` in ytype.js
 void typeMapDelete(Transaction transaction, YType<dynamic> parent, String key) {
-  final c = parent._map[key];
+  final c = parent.yMap[key];
   if (c != null) {
     c.delete(transaction);
   }
@@ -663,7 +1009,7 @@ void typeMapDelete(Transaction transaction, YType<dynamic> parent, String key) {
 /// Mirrors: `typeMapSet` in ytype.js
 void typeMapSet(
     Transaction transaction, YType<dynamic> parent, String key, Object? value) {
-  final left = parent._map[key];
+  final left = parent.yMap[key];
   // ignore: avoid_dynamic_calls
   final doc = transaction.doc;
   // ignore: avoid_dynamic_calls
@@ -709,7 +1055,7 @@ void typeMapSet(
 /// Mirrors: `typeMapGet` in ytype.js
 Object? typeMapGet(YType<dynamic> parent, String key) {
   parent.doc ?? warnPrematureAccess();
-  final val = parent._map[key];
+  final val = parent.yMap[key];
   if (val == null || val.deleted) return null;
   final content = val.content.getContent();
   return content.isNotEmpty ? content[val.length - 1] : null;
@@ -725,7 +1071,7 @@ Object? typeMapGet(YType<dynamic> parent, String key) {
 Map<String, Object?> typeMapGetAll(YType<dynamic> parent) {
   parent.doc ?? warnPrematureAccess();
   final res = <String, Object?>{};
-  parent._map.forEach((key, value) {
+  parent.yMap.forEach((key, value) {
     if (!value.deleted) {
       final content = value.content.getContent();
       res[key] = content.isNotEmpty ? content[value.length - 1] : null;
@@ -743,7 +1089,7 @@ Map<String, Object?> typeMapGetAll(YType<dynamic> parent) {
 /// Mirrors: `typeMapHas` in ytype.js
 bool typeMapHas(YType<dynamic> parent, String key) {
   parent.doc ?? warnPrematureAccess();
-  final val = parent._map[key];
+  final val = parent.yMap[key];
   return val != null && !val.deleted;
 }
 
@@ -756,7 +1102,7 @@ bool typeMapHas(YType<dynamic> parent, String key) {
 /// Mirrors: `typeMapGetSnapshot` in ytype.js
 Object? typeMapGetSnapshot(
     YType<dynamic> parent, String key, dynamic snapshot) {
-  Item? v = parent._map[key];
+  Item? v = parent.yMap[key];
   // ignore: avoid_dynamic_calls
   final sv = snapshot.sv as Map<int, int>;
   while (v != null &&
@@ -798,7 +1144,7 @@ Map<String, Object?> typeMapGetAllSnapshot(
   final res = <String, Object?>{};
   // ignore: avoid_dynamic_calls
   final sv = snapshot.sv as Map<int, int>;
-  parent._map.forEach((key, value) {
+  parent.yMap.forEach((key, value) {
     Item? v = value;
     while (v != null &&
         (!sv.containsKey(v.id.client) ||
@@ -822,7 +1168,7 @@ Map<String, Object?> typeMapGetAllSnapshot(
 /// Mirrors: `getTypeChildren` in ytype.js
 List<Item> getTypeChildren(YType<dynamic> t) {
   t.doc ?? warnPrematureAccess();
-  var s = t._start;
+  var s = t.yStart;
   final arr = <Item>[];
   while (s != null) {
     arr.add(s);
@@ -862,6 +1208,49 @@ class ItemTextListPosition {
     left = r;
     right = r.right as Item?;
   }
+
+  /// Format [length] items at this position with [attributes].
+  ///
+  /// Mirrors: `formatText` in ytype.js
+  void formatText(Transaction transaction, YType<dynamic> parent,
+      int length, Map<String, Object?> attributes) {
+    _minimizeAttributeChanges(this, attributes);
+    final negatedAttributes = _insertAttributes(transaction, parent, this, attributes);
+    // iterate until first non-format or null is found
+    while (right != null &&
+        (length > 0 ||
+            (negatedAttributes.isNotEmpty &&
+                ((right!.deleted && right!.countable == false) ||
+                    right!.content is ContentFormat)))) {
+      if (right!.content is ContentFormat) {
+        if (!right!.deleted) {
+          final cf = right!.content as ContentFormat;
+          final attr = attributes[cf.key];
+          if (attributes.containsKey(cf.key)) {
+            if (equalAttrs(attr, cf.value)) {
+              negatedAttributes.remove(cf.key);
+            } else {
+              if (length == 0) break;
+              negatedAttributes[cf.key] = cf.value;
+            }
+            right!.delete(transaction);
+          } else {
+            currentAttributes[cf.key] = cf.value;
+          }
+        }
+      } else {
+        if (length < right!.length) {
+          getItemCleanStart(
+              transaction,
+              createID(right!.id.client, right!.id.clock + length));
+        }
+        length -= right!.length;
+      }
+      forward();
+    }
+    if (length > 0) throw StateError('Exceeded content range');
+    _insertNegatedAttributes(transaction, parent, this, negatedAttributes);
+  }
 }
 
 void _updateCurrentAttributes(
@@ -877,23 +1266,165 @@ void _updateCurrentAttributes(
 // insertContent / deleteText helpers
 // ---------------------------------------------------------------------------
 
-/// Insert [content] at [currPos] in [parent].
+// ---------------------------------------------------------------------------
+// Text formatting helpers
+// ---------------------------------------------------------------------------
+
+/// Check if two attribute values are equal.
+///
+/// Mirrors: `equalAttrs` in ytype.js
+bool equalAttrs(Object? a, Object? b) {
+  if (a == b) return true;
+  if (a is Map && b is Map) {
+    if (a.length != b.length) return false;
+    for (final key in a.keys) {
+      if (!b.containsKey(key) || !equalAttrs(a[key], b[key])) return false;
+    }
+    return true;
+  }
+  if (a is List && b is List) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+        if (!equalAttrs(a[i], b[i])) return false;
+    }
+    return true;
+  }
+  return false;
+}
+
+/// Skip forward while the current attributes already match.
+///
+/// Mirrors: `minimizeAttributeChanges` in ytype.js
+void _minimizeAttributeChanges(
+    ItemTextListPosition currPos, Map<String, Object?> attributes) {
+  while (true) {
+    if (currPos.right == null) {
+      break;
+    } else if (currPos.right!.deleted ||
+        (currPos.right!.content is ContentFormat &&
+            !currPos.right!.deleted &&
+            equalAttrs(
+                attributes[(currPos.right!.content as ContentFormat).key],
+                (currPos.right!.content as ContentFormat).value))) {
+      // skip
+    } else {
+      break;
+    }
+    currPos.forward();
+  }
+}
+
+/// Insert format-start items for [attributes], returning negated attributes.
+///
+/// Mirrors: `insertAttributes` in ytype.js
+Map<String, Object?> _insertAttributes(Transaction transaction,
+    YType<dynamic> parent, ItemTextListPosition currPos,
+    Map<String, Object?> attributes) {
+  // ignore: avoid_dynamic_calls
+  final doc = transaction.doc;
+  // ignore: avoid_dynamic_calls
+  final ownClientId = doc.clientID as int;
+  final negatedAttributes = <String, Object?>{};
+  for (final entry in attributes.entries) {
+    final key = entry.key;
+    final val = entry.value;
+    final currentVal = currPos.currentAttributes[key];
+    if (!equalAttrs(currentVal, val)) {
+      negatedAttributes[key] = currentVal;
+      final left = currPos.left;
+      final right = currPos.right;
+      // ignore: avoid_dynamic_calls
+      currPos.right = Item(
+        id: createID(ownClientId, getState(doc.store, ownClientId)),
+        left: left,
+        origin: left?.lastId,
+        right: right,
+        rightOrigin: right?.id,
+        parent: parent,
+        parentSub: null,
+        content: ContentFormat(key, val),
+      );
+      currPos.right!.integrate(transaction, 0);
+      currPos.forward();
+    }
+  }
+  return negatedAttributes;
+}
+
+/// Insert format-end items for negated attributes.
+///
+/// Mirrors: `insertNegatedAttributes` in ytype.js
+void _insertNegatedAttributes(Transaction transaction, YType<dynamic> parent,
+    ItemTextListPosition currPos, Map<String, Object?> negatedAttributes) {
+  // Skip forward past deleted items and matching negated formats
+  while (currPos.right != null &&
+      (currPos.right!.deleted ||
+          (currPos.right!.content is ContentFormat &&
+              equalAttrs(
+                  negatedAttributes[
+                      (currPos.right!.content as ContentFormat).key],
+                  (currPos.right!.content as ContentFormat).value)))) {
+    if (!currPos.right!.deleted) {
+      negatedAttributes
+          .remove((currPos.right!.content as ContentFormat).key);
+    }
+    currPos.forward();
+  }
+  // ignore: avoid_dynamic_calls
+  final doc = transaction.doc;
+  // ignore: avoid_dynamic_calls
+  final ownClientId = doc.clientID as int;
+  negatedAttributes.forEach((key, val) {
+    final left = currPos.left;
+    final right = currPos.right;
+    // ignore: avoid_dynamic_calls
+    final nextFormat = Item(
+      id: createID(ownClientId, getState(doc.store, ownClientId)),
+      left: left,
+      origin: left?.lastId,
+      right: right,
+      rightOrigin: right?.id,
+      parent: parent,
+      parentSub: null,
+      content: ContentFormat(key, val),
+    );
+    nextFormat.integrate(transaction, 0);
+    currPos.right = nextFormat;
+    currPos.forward();
+  });
+}
+
+// ---------------------------------------------------------------------------
+// insertContent / deleteText helpers
+// ---------------------------------------------------------------------------
+
+/// Insert [content] at [currPos] in [parent] with optional text [attributes].
 ///
 /// Mirrors: `insertContent` in ytype.js
 void insertContent(Transaction transaction, YType<dynamic> parent,
     ItemTextListPosition currPos, AbstractContent content,
     [Map<String, Object?> attributes = const {}]) {
+  // Add any current attributes that aren't in the provided attributes
+  final attrs = Map<String, Object?>.from(attributes);
+  currPos.currentAttributes.forEach((key, _) {
+    if (!attrs.containsKey(key)) {
+      attrs[key] = null;
+    }
+  });
   // ignore: avoid_dynamic_calls
   final doc = transaction.doc;
   // ignore: avoid_dynamic_calls
   final ownClientId = doc.clientID as int;
   // ignore: avoid_dynamic_calls
   final store = doc.store;
+  _minimizeAttributeChanges(currPos, attrs);
+  final negatedAttributes = _insertAttributes(
+      transaction, parent, currPos, attrs);
   final left = currPos.left;
   final right = currPos.right;
-  if (parent._searchMarker != null) {
+  if (parent.searchMarker != null) {
     updateMarkerChanges(
-        parent._searchMarker!, currPos.index, content.length);
+        parent.searchMarker!, currPos.index, content.length);
   }
   final newItem = Item(
     id: createID(ownClientId, getState(store, ownClientId)),
@@ -908,6 +1439,7 @@ void insertContent(Transaction transaction, YType<dynamic> parent,
   newItem.integrate(transaction, 0);
   currPos.right = newItem;
   currPos.forward();
+  _insertNegatedAttributes(transaction, parent, currPos, negatedAttributes);
 }
 
 /// Delete [length] characters at [currPos].
@@ -934,9 +1466,9 @@ ItemTextListPosition deleteText(
         Map.of(currPos.currentAttributes), currPos.currentAttributes);
   }
   final parent = (currPos.left ?? currPos.right)?.parent as YType<dynamic>?;
-  if (parent?._searchMarker != null) {
+  if (parent?.searchMarker != null) {
     updateMarkerChanges(
-        parent!._searchMarker!, currPos.index, -startLength + length);
+        parent!.searchMarker!, currPos.index, -startLength + length);
   }
   return currPos;
 }
@@ -956,7 +1488,7 @@ YType<dynamic> readYType(dynamic decoder) {
       ? decoder.readKey() as String
       : null;
   final ytype = YType<YEvent<dynamic>>(name);
-  ytype._legacyTypeRef = typeRef;
+  ytype.legacyTypeRef = typeRef;
   return ytype;
 }
 

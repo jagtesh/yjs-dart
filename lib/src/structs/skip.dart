@@ -34,13 +34,13 @@ class Skip extends AbstractStruct {
     if (offset > 0) {
       final newId = createID(id.client, id.clock + offset);
       final adjusted = Skip(newId, length - offset);
-      adjusted._integrateInto(transaction);
+      adjusted.integrateInto(transaction);
       return;
     }
-    _integrateInto(transaction);
+    integrateInto(transaction);
   }
 
-  void _integrateInto(dynamic transaction) {
+  void integrateInto(dynamic transaction) {
     // ignore: avoid_dynamic_calls
     transaction.doc.store.skips.addToIdSet(id.client, id.clock, length);
     // ignore: avoid_dynamic_calls

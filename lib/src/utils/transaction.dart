@@ -13,6 +13,8 @@ import '../utils/id.dart';
 import '../utils/id_set.dart' hide findIndexSS;
 import '../utils/struct_store.dart';
 import '../utils/update_encoder.dart';
+import '../utils/y_event.dart' show YEvent;
+import '../y_type.dart' show YType;
 
 // ---------------------------------------------------------------------------
 // Transaction
@@ -202,7 +204,7 @@ ID nextID(Transaction transaction) {
 void addChangedTypeToTransaction(
     Transaction transaction, dynamic type, String? parentSub) {
   // ignore: avoid_dynamic_calls
-  final item = type._item as Item?;
+  final item = type.yItem as Item?;
   if (item == null ||
       (!item.deleted && !transaction.insertSet.hasId(item.id))) {
     transaction.changed.putIfAbsent(type, () => <String?>{}).add(parentSub);
@@ -218,19 +220,25 @@ void addChangedTypeToTransaction(
 ///
 /// Mirrors: `tryToMergeWithLefts` in Transaction.js
 int _tryToMergeWithLefts(List<AbstractStruct> structs, int pos) {
+  if (pos <= 0 || pos >= structs.length) return 0;
   var right = structs[pos];
   var left = structs[pos - 1];
   var i = pos;
-  for (; i > 0; right = left, left = structs[--i - 1]) {
+  while (i > 0) {
     if (left.deleted == right.deleted &&
         left.runtimeType == right.runtimeType) {
       if (left.mergeWith(right)) {
         // If right was in a parent map, update the map to point to left
         if (right is Item &&
             right.parentSub != null &&
-            (right.parent as dynamic)?._map[right.parentSub] == right) {
+            (right.parent as dynamic)?.yMap[right.parentSub] == right) {
           // ignore: avoid_dynamic_calls
-          (right.parent as dynamic)._map[right.parentSub] = left;
+          (right.parent as dynamic).yMap[right.parentSub] = left;
+        }
+        i--;
+        if (i > 0) {
+          right = left;
+          left = structs[i - 1];
         }
         continue;
       }
@@ -397,7 +405,7 @@ int cleanupYTextFormatting(dynamic type) {
   // ignore: avoid_dynamic_calls
   transact(type.doc, (transaction) {
     // ignore: avoid_dynamic_calls
-    Item? start = type._start as Item?;
+    Item? start = type.yStart as Item?;
     Item? end = start;
     var startAttributes = <String, Object?>{};
     final currentAttributes = <String, Object?>{};
@@ -445,7 +453,7 @@ void cleanupYTextAfterTransaction(Transaction transaction) {
       if (item is GC) return;
       // ignore: avoid_dynamic_calls
       final hasFormatting = (item as Item).parent != null &&
-          ((item.parent as dynamic)?._hasFormatting == true);
+          ((item.parent as dynamic)?.hasFormatting == true);
       if (!hasFormatting || needFullCleanup.contains(item.parent)) return;
       if (item.content is ContentFormat) {
         needFullCleanup.add(item.parent);
@@ -530,10 +538,10 @@ void _cleanupTransactions(List<Transaction> transactionCleanups, int i) {
     transaction.changed.forEach((itemtype, subs) {
       fs.add(() {
         // ignore: avoid_dynamic_calls
-        final typeItem = itemtype._item as Item?;
+        final typeItem = itemtype.yItem as Item?;
         if (typeItem == null || !typeItem.deleted) {
           // ignore: avoid_dynamic_calls
-          itemtype._callObserver(transaction, subs);
+          itemtype.callObserver(transaction, subs);
         }
       });
     });
@@ -542,18 +550,20 @@ void _cleanupTransactions(List<Transaction> transactionCleanups, int i) {
       // Deep observe events
       transaction.changedParentTypes.forEach((type, events) {
         // ignore: avoid_dynamic_calls
-        final dEH = type._dEH;
+        final dEH = type.dEH;
         // ignore: avoid_dynamic_calls
         final dEHLen = (dEH.l as List).length;
         // ignore: avoid_dynamic_calls
-        final typeItem = type._item as Item?;
+        final typeItem = type.yItem as Item?;
         if (dEHLen > 0 && (typeItem == null || !typeItem.deleted)) {
+          // Find event whose target matches this type, or create a fallback
           // ignore: avoid_dynamic_calls
-          final deepEvent = events.isNotEmpty ? events[0] : null;
-          if (deepEvent != null) {
-            // ignore: avoid_dynamic_calls
-            callEventHandlerListeners(dEH, deepEvent, transaction);
-          }
+          final deepEvent = events.cast<YEvent>().firstWhere(
+            (e) => e.target == type,
+            orElse: () => YEvent(type as YType, transaction, {null}),
+          );
+          // ignore: avoid_dynamic_calls
+          callEventHandlerListeners(dEH, deepEvent, transaction);
         }
       });
     });

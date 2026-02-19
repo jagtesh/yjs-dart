@@ -121,7 +121,7 @@ StackItem? _popStackItem(
     transaction.changed.forEach((subProps, type) {
       if (subProps.contains(null) as bool) {
         // ignore: avoid_dynamic_calls
-        final searchMarker = (type as dynamic)._searchMarker;
+        final searchMarker = (type as dynamic).searchMarker;
         if (searchMarker != null) {
           // ignore: avoid_dynamic_calls
           (searchMarker as dynamic).length = 0;

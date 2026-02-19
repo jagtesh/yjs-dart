@@ -40,6 +40,9 @@ class DocOpts {
   /// Whether this is a suggestion document.
   final bool isSuggestionDoc;
 
+  /// Optional deterministic client ID (for testing).
+  final int? clientID;
+
   DocOpts({
     String? guid,
     this.collectionid,
@@ -49,6 +52,7 @@ class DocOpts {
     this.autoLoad = false,
     this.shouldLoad = true,
     this.isSuggestionDoc = false,
+    this.clientID,
   })  : guid = guid ?? random.uuidv4(),
         gcFilter = gcFilter ?? ((_) => true);
 }
@@ -99,7 +103,7 @@ class Doc extends Observable<String> {
   final Set<Doc> subdocs = {};
 
   /// The item that contains this doc (if it's a subdoc).
-  dynamic _item; // Item?
+  dynamic yItem; // Item?
 
   /// Whether the document should be synced.
   bool shouldLoad;
@@ -122,7 +126,7 @@ class Doc extends Observable<String> {
   Doc([DocOpts? opts])
       : gc = opts?.gc ?? true,
         gcFilter = opts?.gcFilter ?? ((_) => true),
-        clientID = generateNewClientId(),
+        clientID = opts?.clientID ?? generateNewClientId(),
         guid = opts?.guid ?? random.uuidv4(),
         collectionid = opts?.collectionid,
         isSuggestionDoc = opts?.isSuggestionDoc ?? false,
@@ -131,15 +135,17 @@ class Doc extends Observable<String> {
         autoLoad = opts?.autoLoad ?? false,
         meta = opts?.meta;
 
-  /// Get or create a shared type by [name] using [typeConstructor].
-  T get<T extends YType<dynamic>>(String name, T Function() typeConstructor) {
+  /// Get or create a shared type by [name].
+  ///
+  /// If [typeConstructor] is omitted, a plain `YType()` is created.
+  T get<T extends YType<dynamic>>(String name, [T Function()? typeConstructor]) {
     final existing = share[name];
     if (existing != null) {
       if (existing is T) return existing;
-      throw StateError(
-          'Type mismatch: "$name" already exists as ${existing.runtimeType}');
+      // If a generic YType is requested, return the existing one
+      return existing as T;
     }
-    final type = typeConstructor();
+    final type = typeConstructor != null ? typeConstructor() : YType() as T;
     share[name] = type;
     type.integrate(this, null);
     return type;
@@ -157,7 +163,7 @@ class Doc extends Observable<String> {
 
   /// Load this document (fires the 'load' event).
   void load() {
-    final item = _item;
+    final item = yItem;
     if (item != null && !shouldLoad) {
       tr_lib.transact<void>(this, (tr) {
         tr.subdocsLoaded.add(this);
@@ -198,9 +204,9 @@ class Doc extends Observable<String> {
     for (final subdoc in List.of(subdocs)) {
       subdoc.destroy();
     }
-    final item = _item;
+    final item = yItem;
     if (item != null) {
-      _item = null;
+      yItem = null;
       // Replace the ContentDoc with a fresh unloaded doc
       // ignore: avoid_dynamic_calls
       final content = item.content;
@@ -209,7 +215,7 @@ class Doc extends Observable<String> {
       // ignore: avoid_dynamic_calls
       content.doc = newDoc;
       // ignore: avoid_dynamic_calls
-      newDoc._item = item;
+      newDoc.yItem = item;
       // ignore: avoid_dynamic_calls
       tr_lib.transact<void>(item.parent.doc as Doc, (tr) {
         if (!(item.deleted as bool)) {
@@ -228,12 +234,20 @@ class Doc extends Observable<String> {
 ///
 /// Mirrors: `cloneDoc` in Doc.js
 Doc cloneDoc(Doc ydoc, [DocOpts? opts]) {
-  // Import lazily to avoid circular dependency at top level
-  // ignore: avoid_dynamic_calls
   final clone = Doc(opts);
-  // Apply the full state of ydoc to clone
-  // We use dynamic dispatch to avoid a direct import of updates.dart
-  // (which would create a circular dependency chain).
-  // Callers who need cloneDoc should use the updates.dart top-level function.
+  // Apply the full state by iterating shared types
+  // For each shared type in the original, create a matching type in the clone
+  ydoc.share.forEach((key, type) {
+    final newType = clone.get(key, () => YType(type.name));
+    // Copy array content
+    final arr = type.toArray();
+    if (arr.isNotEmpty) {
+      newType.insert(0, arr.map((c) => c is YType ? c.clone() : c).toList());
+    }
+    // Copy map content
+    type.forEachAttr((val, attrKey, _) {
+      newType.setAttr(attrKey, val is YType ? val.clone() : val);
+    });
+  });
   return clone;
 }

@@ -51,7 +51,7 @@ Map<String, Object?> diffDocsToDelta(dynamic v1, dynamic v2,
         if (conf.contains(current.parentSub)) break;
         conf.add(current.parentSub);
         // ignore: avoid_dynamic_calls
-        current = (parent as dynamic)._item;
+        current = (parent as dynamic).yItem;
       }
     });
 

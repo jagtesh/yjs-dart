@@ -57,3 +57,15 @@ void writeID(encoding.Encoder encoder, ID id) {
 /// Mirrors: `readID` in ID.js
 ID readID(decoding.Decoder decoder) =>
     createID(decoding.readVarUint(decoder), decoding.readVarUint(decoder));
+
+/// Find the key name of a root type in the document's share map.
+///
+/// Mirrors: `findRootTypeKey` in ID.js
+String findRootTypeKey(dynamic type) {
+  // ignore: avoid_dynamic_calls
+  final share = type.doc.share as Map<String, dynamic>;
+  for (final entry in share.entries) {
+    if (identical(entry.value, type)) return entry.key;
+  }
+  throw StateError('Root type key not found');
+}

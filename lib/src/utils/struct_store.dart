@@ -7,9 +7,11 @@ import 'dart:typed_data';
 
 import '../structs/abstract_struct.dart';
 import '../structs/gc.dart';
+import '../structs/item.dart' show splitStruct;
 import '../structs/skip.dart';
 import '../utils/id.dart';
 import '../utils/id_set.dart';
+import '../utils/transaction.dart' show Transaction;
 
 /// Stores all CRDT structs, organized by client id.
 ///
@@ -184,11 +186,11 @@ dynamic getItemCleanStart(dynamic transaction, ID id) {
   final structs = store.clients[id.client]!;
   final index = findIndexSS(structs, id.clock);
   final struct = structs[index];
-  if (struct.id.clock < id.clock && struct is _SplittableStruct) {
-    // Need to split at id.clock
+  if (struct.id.clock < id.clock && struct is! GC) {
     final diff = id.clock - struct.id.clock;
-    // ignore: avoid_dynamic_calls
-    final right = (transaction as dynamic)._splitStruct(struct, diff);
+    // Use splitStruct which properly maintains linked list pointers
+    final right = splitStruct(transaction as Transaction?, struct, diff);
+    structs.insert(index + 1, right);
     return right;
   }
   return struct;
@@ -205,7 +207,7 @@ dynamic getItemCleanEnd(dynamic transaction, dynamic store, ID id) {
   if (id.clock != struct.id.clock + struct.length - 1 && struct is! GC) {
     final diff = id.clock - struct.id.clock + 1;
     // ignore: avoid_dynamic_calls
-    (transaction as dynamic)._splitStruct(struct, diff);
+    (transaction as dynamic).splitStruct_(struct, diff);
   }
   return struct;
 }

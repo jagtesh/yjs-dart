@@ -36,23 +36,27 @@ void write(Encoder encoder, int num) {
 /// Write a Uint8 (alias for [write]).
 void writeUint8(Encoder encoder, int num) => write(encoder, num);
 
-/// Write a Uint16 in big-endian order.
+/// Write a Uint16 in little-endian order (matches JS lib0).
 void writeUint16(Encoder encoder, int num) {
-  encoder._buf.addByte((num >>> 8) & 0xFF);
   encoder._buf.addByte(num & 0xFF);
+  encoder._buf.addByte((num >>> 8) & 0xFF);
+}
+
+/// Write a Uint32 in little-endian order (matches JS lib0).
+void writeUint32(Encoder encoder, int num) {
+  encoder._buf.addByte(num & 0xFF);
+  encoder._buf.addByte((num >>> 8) & 0xFF);
+  encoder._buf.addByte((num >>> 16) & 0xFF);
+  encoder._buf.addByte((num >>> 24) & 0xFF);
 }
 
 /// Write a Uint32 in big-endian order.
-void writeUint32(Encoder encoder, int num) {
+void writeUint32BigEndian(Encoder encoder, int num) {
   encoder._buf.addByte((num >>> 24) & 0xFF);
   encoder._buf.addByte((num >>> 16) & 0xFF);
   encoder._buf.addByte((num >>> 8) & 0xFF);
   encoder._buf.addByte(num & 0xFF);
 }
-
-/// Write a Uint32 in big-endian order (alias).
-void writeUint32BigEndian(Encoder encoder, int num) =>
-    writeUint32(encoder, num);
 
 /// Write a variable-length unsigned integer (LEB128).
 void writeVarUint(Encoder encoder, int num) {
@@ -65,11 +69,27 @@ void writeVarUint(Encoder encoder, int num) {
   encoder._buf.addByte(n & 0x7F);
 }
 
-/// Write a variable-length signed integer (zigzag + LEB128).
+/// Write a variable-length signed integer.
+///
+/// Mirrors JS lib0/encoding.writeVarInt:
+///   First byte layout: [continue][sign][value × 6 bits]
+///   Subsequent bytes:  [continue][value × 7 bits]
 void writeVarInt(Encoder encoder, int num) {
-  final isNegative = num < 0;
-  final n = isNegative ? (-num - 1) * 2 + 1 : num * 2;
-  writeVarUint(encoder, n);
+  final bool isNegative = num < 0;
+  if (isNegative) num = -num;
+  // First byte: 6 data bits + sign bit + continuation bit
+  write(encoder,
+      (num > 0x3F ? 0x80 : 0) | // continuation bit (BIT8)
+      (isNegative ? 0x40 : 0) | // sign bit (BIT7)
+      (num & 0x3F));             // 6 data bits (BITS6)
+  num ~/= 64; // shift >>> 6
+  // Subsequent bytes: 7 data bits + continuation bit
+  while (num > 0) {
+    write(encoder,
+        (num > 0x7F ? 0x80 : 0) | // continuation bit
+        (num & 0x7F));             // 7 data bits
+    num ~/= 128; // shift >>> 7
+  }
 }
 
 /// Write a variable-length UTF-8 string.
@@ -123,26 +143,41 @@ void writeBigInt64(Encoder encoder, BigInt num) {
 
 /// Write an arbitrary JSON-compatible value using the lib0 "any" encoding.
 ///
-/// Supports: null, bool, int, double, String, List, Map<String, dynamic>.
+/// Encoding table (matches lib0/encoding.js):
+///   127: undefined, 126: null, 125: integer (writeVarInt),
+///   124: float32, 123: float64, 122: bigint, 121: false, 120: true,
+///   119: string, 118: object, 117: array, 116: Uint8Array
 void writeAny(Encoder encoder, Object? value) {
   if (value == null) {
     write(encoder, 126); // null
   } else if (value is bool) {
     write(encoder, value ? 120 : 121); // true / false
   } else if (value is int) {
-    if (value >= -2147483648 && value <= 2147483647) {
-      write(encoder, 125); // int32
-      writeUint32(encoder, value < 0 ? value + 0x100000000 : value);
+    if (value.abs() <= 0x7FFFFFFF) {
+      // TYPE 125: integer — writeVarInt
+      write(encoder, 125);
+      writeVarInt(encoder, value);
     } else {
-      write(encoder, 124); // float64 for large ints
+      // TYPE 123: float64 for large ints
+      write(encoder, 123);
       writeFloat64(encoder, value.toDouble());
     }
   } else if (value is double) {
-    write(encoder, 124); // float64
-    writeFloat64(encoder, value);
+    if (_isFloat32(value)) {
+      // TYPE 124: float32
+      write(encoder, 124);
+      writeFloat32(encoder, value);
+    } else {
+      // TYPE 123: float64
+      write(encoder, 123);
+      writeFloat64(encoder, value);
+    }
   } else if (value is String) {
     write(encoder, 119); // string
     writeVarString(encoder, value);
+  } else if (value is Uint8List) {
+    write(encoder, 116); // Uint8Array — must check before List
+    writeVarUint8Array(encoder, value);
   } else if (value is List) {
     write(encoder, 117); // array
     writeVarUint(encoder, value.length);
@@ -156,10 +191,13 @@ void writeAny(Encoder encoder, Object? value) {
       writeVarString(encoder, k.toString());
       writeAny(encoder, v);
     });
-  } else if (value is Uint8List) {
-    write(encoder, 116); // Uint8Array
-    writeVarUint8Array(encoder, value);
   } else {
     throw ArgumentError('Cannot encode value of type ${value.runtimeType}');
   }
+}
+
+/// Check if a number can be exactly represented as a 32-bit float.
+bool _isFloat32(double num) {
+  final bd = ByteData(4)..setFloat32(0, num);
+  return bd.getFloat32(0) == num;
 }

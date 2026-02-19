@@ -117,3 +117,15 @@ export 'src/utils/is_parent_of.dart' show isParentOf;
 export 'src/utils/logging.dart' show logType;
 export 'src/utils/meta.dart' show yjsVersion;
 export 'src/utils/delta_helpers.dart' show diffDocsToDelta;
+
+// Updates (encoding/decoding)
+export 'src/utils/updates.dart'
+    show
+        applyUpdate,
+        applyUpdateV2,
+        encodeStateAsUpdate,
+        encodeStateAsUpdateV2,
+        encodeStateVector,
+        encodeStateVectorV2,
+        encodeStateVectorFromUpdate,
+        encodeStateVectorFromUpdateV2;

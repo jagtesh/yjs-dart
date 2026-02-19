@@ -38,25 +38,33 @@ int read(Decoder decoder) => decoder.arr[decoder.pos++];
 /// Read a Uint8 (alias for [read]).
 int readUint8(Decoder decoder) => read(decoder);
 
-/// Read a Uint16 in big-endian order.
+/// Read a Uint16 in little-endian order (matches JS lib0).
 int readUint16(Decoder decoder) {
-  final result = (decoder.arr[decoder.pos] << 8) | decoder.arr[decoder.pos + 1];
+  final result = decoder.arr[decoder.pos] |
+      (decoder.arr[decoder.pos + 1] << 8);
   decoder.pos += 2;
   return result;
 }
 
-/// Read a Uint32 in big-endian order.
+/// Read a Uint32 in little-endian order (matches JS lib0).
 int readUint32(Decoder decoder) {
-  final result = (decoder.arr[decoder.pos] << 24) |
-      (decoder.arr[decoder.pos + 1] << 16) |
-      (decoder.arr[decoder.pos + 2] << 8) |
-      decoder.arr[decoder.pos + 3];
+  final result = (decoder.arr[decoder.pos] +
+      (decoder.arr[decoder.pos + 1] << 8) +
+      (decoder.arr[decoder.pos + 2] << 16) +
+      (decoder.arr[decoder.pos + 3] << 24));
   decoder.pos += 4;
-  return result;
+  return result >= 0 ? result : result + 0x100000000; // unsigned
 }
 
-/// Read a Uint32 in big-endian order (alias).
-int readUint32BigEndian(Decoder decoder) => readUint32(decoder);
+/// Read a Uint32 in big-endian order.
+int readUint32BigEndian(Decoder decoder) {
+  final result = (decoder.arr[decoder.pos + 3] +
+      (decoder.arr[decoder.pos + 2] << 8) +
+      (decoder.arr[decoder.pos + 1] << 16) +
+      (decoder.arr[decoder.pos] << 24));
+  decoder.pos += 4;
+  return result >= 0 ? result : result + 0x100000000; // unsigned
+}
 
 /// Read a variable-length unsigned integer (LEB128).
 int readVarUint(Decoder decoder) {
@@ -71,10 +79,30 @@ int readVarUint(Decoder decoder) {
   return num;
 }
 
-/// Read a variable-length signed integer (zigzag + LEB128).
+/// Read a variable-length signed integer.
+///
+/// Mirrors JS lib0/decoding.readVarInt:
+///   First byte: [continue][sign][value × 6 bits]
+///   Subsequent:  [continue][value × 7 bits]
 int readVarInt(Decoder decoder) {
-  final n = readVarUint(decoder);
-  return (n & 1) == 1 ? -((n >> 1) + 1) : n >> 1;
+  var r = decoder.arr[decoder.pos++];
+  var num = r & 0x3F; // 6 data bits (BITS6)
+  var mult = 64;
+  final sign = (r & 0x40) > 0 ? -1 : 1; // sign bit (BIT7)
+  if ((r & 0x80) == 0) {
+    // no continuation
+    return sign * num;
+  }
+  final len = decoder.arr.length;
+  while (decoder.pos < len) {
+    r = decoder.arr[decoder.pos++];
+    num = num + (r & 0x7F) * mult; // 7 data bits
+    mult *= 128;
+    if ((r & 0x80) == 0) { // no continuation
+      return sign * num;
+    }
+  }
+  throw StateError('Unexpected end of array');
 }
 
 /// Read a variable-length UTF-8 string.
@@ -136,25 +164,31 @@ BigInt readBigInt64(Decoder decoder) {
 }
 
 /// Read an arbitrary JSON-compatible value (lib0 "any" encoding).
+///
+/// Encoding table (matches lib0/encoding.js):
+///   127: undefined, 126: null, 125: integer (readVarInt),
+///   124: float32, 123: float64, 122: bigint, 121: false, 120: true,
+///   119: string, 118: object, 117: array, 116: Uint8Array
 Object? readAny(Decoder decoder) {
   final type = read(decoder);
   switch (type) {
+    case 127: // undefined → treat as null in Dart
+      return null;
     case 126: // null
       return null;
-    case 120: // true
-      return true;
+    case 125: // integer (readVarInt)
+      return readVarInt(decoder);
+    case 124: // float32
+      return readFloat32(decoder);
+    case 123: // float64
+      return readFloat64(decoder);
+    // case 122: bigint — not supported in Dart
     case 121: // false
       return false;
-    case 125: // int32
-      final raw = readUint32(decoder);
-      return raw >= 0x80000000 ? raw - 0x100000000 : raw;
-    case 124: // float64
-      return readFloat64(decoder);
+    case 120: // true
+      return true;
     case 119: // string
       return readVarString(decoder);
-    case 117: // array
-      final len = readVarUint(decoder);
-      return List.generate(len, (_) => readAny(decoder));
     case 118: // object
       final len = readVarUint(decoder);
       final map = <String, Object?>{};
@@ -163,6 +197,9 @@ Object? readAny(Decoder decoder) {
         map[key] = readAny(decoder);
       }
       return map;
+    case 117: // array
+      final len = readVarUint(decoder);
+      return List.generate(len, (_) => readAny(decoder));
     case 116: // Uint8Array
       return readVarUint8Array(decoder);
     default:

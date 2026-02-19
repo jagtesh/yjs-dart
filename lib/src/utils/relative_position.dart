@@ -69,13 +69,13 @@ RelativePosition createRelativePosition(dynamic type, ID? item, [int assoc = 0])
   ID? typeid;
   String? tname;
   // ignore: avoid_dynamic_calls
-  if ((type as dynamic)._item == null) {
+  if ((type as dynamic).yItem == null) {
     // Root type — use the share key
     // ignore: avoid_dynamic_calls
     tname = _findRootTypeKey(type);
   } else {
     // ignore: avoid_dynamic_calls
-    final typeItem = type._item;
+    final typeItem = type.yItem;
     // ignore: avoid_dynamic_calls
     typeid = createID(typeItem.id.client as int, typeItem.id.clock as int);
   }
@@ -103,7 +103,7 @@ RelativePosition createRelativePositionFromTypeIndex(
   int assoc = 0,
 ]) {
   // ignore: avoid_dynamic_calls
-  dynamic t = (type as dynamic)._start;
+  dynamic t = (type as dynamic).yStart;
   if (assoc < 0) {
     if (index == 0) {
       return createRelativePosition(type, null, assoc);
@@ -273,7 +273,7 @@ AbsolutePosition? createAbsolutePositionFromRelativePosition(
     if (right is! Item) return null;
     type = right.parent;
     // ignore: avoid_dynamic_calls
-    final typeItem = (type as dynamic)._item;
+    final typeItem = (type as dynamic).yItem;
     if (typeItem == null || !(typeItem.deleted as bool)) {
       // ignore: avoid_dynamic_calls
       final contentLen = right.countable && !right.deleted ? right.length : 0;
@@ -310,7 +310,7 @@ AbsolutePosition? createAbsolutePositionFromRelativePosition(
       throw StateError('RelativePosition has no type, tname, or item');
     }
     // ignore: avoid_dynamic_calls
-    index = assoc >= 0 ? ((type as dynamic)._length as int) : 0;
+    index = assoc >= 0 ? ((type as dynamic).yLength as int) : 0;
   }
   return createAbsolutePosition(type, index, assoc);
 }

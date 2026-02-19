@@ -3,6 +3,7 @@
 /// Mirrors: y-protocols/awareness.js (v1.0.5)
 library;
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -43,15 +44,33 @@ class Awareness extends Observable<String> {
     // Set initial local state
     setLocalState({});
     // Start the outdated-state pruning interval
-    // Note: In Dart we use a periodic Timer instead of setInterval
-    // We skip the timer in this implementation to avoid dart:async dependency
-    // in the core library — callers can implement their own pruning.
+    _checkInterval = Timer.periodic(
+        const Duration(milliseconds: outdatedTimeout ~/ 10), (timer) {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      if (getLocalState() != null &&
+          outdatedTimeout / 2 <= now - meta[clientID]!.lastUpdated) {
+        // renew local clock
+        setLocalState(getLocalState());
+      }
+      final remove = <int>[];
+      meta.forEach((client, meta) {
+        if (client != clientID &&
+            outdatedTimeout <= now - meta.lastUpdated &&
+            states.containsKey(client)) {
+          remove.add(client);
+        }
+      });
+      if (remove.isNotEmpty) {
+        removeAwarenessStates(this, remove, 'timeout');
+      }
+    });
   }
 
   @override
   void destroy() {
     emit('destroy', [this]);
     setLocalState(null);
+    (_checkInterval as Timer?)?.cancel();
     super.destroy();
   }
 

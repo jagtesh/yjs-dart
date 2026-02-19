@@ -490,13 +490,13 @@ class ContentType implements AbstractContent {
   @override
   void integrate(Transaction transaction, Item item) {
     // ignore: avoid_dynamic_calls
-    (type as dynamic)._integrate(transaction.doc, item);
+    (type as dynamic).integrate(transaction.doc, item);
   }
 
   @override
   void delete(Transaction transaction) {
     // ignore: avoid_dynamic_calls
-    var item = (type as dynamic)._start as Item?;
+    var item = (type as dynamic).yStart as Item?;
     while (item != null) {
       if (!item.deleted) {
         item.delete(transaction);
@@ -507,7 +507,7 @@ class ContentType implements AbstractContent {
       item = item.right as Item?;
     }
     // ignore: avoid_dynamic_calls
-    (type as dynamic)._map.forEach((_, mapItem) {
+    (type as dynamic).yMap.forEach((_, mapItem) {
       var mi = mapItem as Item?;
       while (mi != null) {
         if (!mi.deleted) {
@@ -519,21 +519,21 @@ class ContentType implements AbstractContent {
       }
     });
     // ignore: avoid_dynamic_calls
-    (type as dynamic)._item = null;
+    (type as dynamic).yItem = null;
   }
 
   @override
   void gc(dynamic store) {
     // ignore: avoid_dynamic_calls
-    var item = (type as dynamic)._start as Item?;
+    var item = (type as dynamic).yStart as Item?;
     while (item != null) {
       item.gc(store, true);
       item = item.right as Item?;
     }
     // ignore: avoid_dynamic_calls
-    (type as dynamic)._start = null;
+    (type as dynamic).yStart = null;
     // ignore: avoid_dynamic_calls
-    (type as dynamic)._map.forEach((_, mapItem) {
+    (type as dynamic).yMap.forEach((_, mapItem) {
       var mi = mapItem as Item?;
       while (mi != null) {
         mi.gc(store, true);
@@ -541,13 +541,13 @@ class ContentType implements AbstractContent {
       }
     });
     // ignore: avoid_dynamic_calls
-    (type as dynamic)._map.clear();
+    (type as dynamic).yMap.clear();
   }
 
   @override
   void write(dynamic encoder, int offset) {
     // ignore: avoid_dynamic_calls
-    encoder.writeTypeRef((type as dynamic).typeRef as int);
+    encoder.writeTypeRef((type as dynamic).legacyTypeRef as int);
   }
 
   @override

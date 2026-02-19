@@ -34,13 +34,13 @@ class GC extends AbstractStruct {
     if (offset > 0) {
       final newId = createID(id.client, id.clock + offset);
       final adjusted = GC(newId, length - offset);
-      adjusted._integrateInto(transaction as Transaction);
+      adjusted.integrateInto(transaction as Transaction);
       return;
     }
-    _integrateInto(transaction as Transaction);
+    integrateInto(transaction as Transaction);
   }
 
-  void _integrateInto(Transaction transaction) {
+  void integrateInto(Transaction transaction) {
     addToIdSet(transaction.deleteSet, id.client, id.clock, length);
     addToIdSet(transaction.insertSet, id.client, id.clock, length);
     // ignore: avoid_dynamic_calls

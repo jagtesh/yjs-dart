@@ -11,6 +11,7 @@ import '../structs/abstract_struct.dart';
 import '../utils/id.dart';
 import '../utils/update_encoder.dart';
 import '../utils/update_decoder.dart';
+import '../utils/struct_store.dart' as struct_store;
 
 /// A single contiguous range of IDs: [clock, clock+len).
 ///
@@ -591,7 +592,7 @@ Uint8List? readAndApplyDeleteSet(
     // ignore: avoid_dynamic_calls
     final structs = (store.clients[client] ?? []) as List<AbstractStruct>;
     // ignore: avoid_dynamic_calls
-    final state = store.getState(client) as int;
+    final state = struct_store.getState(store, client);
     for (var j = 0; j < numberOfDeletes; j++) {
       // ignore: avoid_dynamic_calls
       final clock = decoder.readDsClock() as int;

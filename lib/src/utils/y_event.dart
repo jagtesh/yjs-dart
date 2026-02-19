@@ -94,7 +94,7 @@ class YEvent<T> {
     dynamic child = target;
     while (child != null) {
       // ignore: avoid_dynamic_calls
-      final item = child._item;
+      final item = child.yItem;
       if (item == null) break;
       // ignore: avoid_dynamic_calls
       final parentSub = item.parentSub;
