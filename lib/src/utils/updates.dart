@@ -195,7 +195,9 @@ void writeClientsStructs(
             inapplicableItems.refs.sublist(inapplicableItems.i);
         clientsStructRefs.clients.remove(client);
         inapplicableItems.i = 0;
-        inapplicableItems.refs.clear();
+        // JS uses splice(0) to clear in-place; in Dart, reassign to a new
+        // growable list — .clear() fails if refs is a fixed-length sublist.
+        inapplicableItems.refs = [];
       } else {
         restStructs.clients[client] = [item];
       }

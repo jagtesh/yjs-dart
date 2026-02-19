@@ -769,12 +769,8 @@ void callEventHandlerListeners(dynamic eH, dynamic event, Transaction tr) {
   // ignore: avoid_dynamic_calls
   final listeners = eH.l as List;
   for (final listener in List<dynamic>.from(listeners)) {
-    try {
-      // ignore: avoid_dynamic_calls
-      listener(event, tr);
-    } catch (_) {
-      // continue calling other listeners
-    }
+    // ignore: avoid_dynamic_calls
+    listener(event, tr);
   }
 }
 

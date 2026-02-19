@@ -47,12 +47,7 @@ void readSyncStep1(
 /// Mirrors: `readSyncStep2` in sync.js
 void readSyncStep2(
     decoding.Decoder decoder, Doc doc, Object? transactionOrigin) {
-  try {
-    applyUpdate(doc, decoding.readVarUint8Array(decoder), transactionOrigin);
-  } catch (e) {
-    // Errors thrown by event handlers should not crash the sync loop.
-    // Uncomment to debug: print('Caught error while handling a Yjs update: $e');
-  }
+  applyUpdate(doc, decoding.readVarUint8Array(decoder), transactionOrigin);
 }
 
 /// Write a raw update message.

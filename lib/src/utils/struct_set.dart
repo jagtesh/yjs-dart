@@ -23,7 +23,7 @@ import '../y_type.dart' show YMap;
 /// Mirrors: `StructRange` in StructSet.js
 class StructRange {
   int i = 0;
-  final List<AbstractStruct> refs;
+  List<AbstractStruct> refs; // non-final: addStackToRestSS may reassign to []
   StructRange(this.refs);
 }
 
@@ -61,7 +61,8 @@ StructSet readStructSet(dynamic decoder, dynamic doc) {
   for (var i = 0; i < numOfStateUpdates; i++) {
     // ignore: avoid_dynamic_calls
     final numberOfStructs = decoding.readVarUint(decoder.restDecoder as decoding.Decoder);
-    final refs = List<AbstractStruct>.filled(numberOfStructs, GC(createID(0, 0), 0));
+    final refs = List<AbstractStruct>.filled(
+        numberOfStructs, GC(createID(0, 0), 0), growable: true);
     // ignore: avoid_dynamic_calls
     final client = decoder.readClient() as int;
     // ignore: avoid_dynamic_calls
