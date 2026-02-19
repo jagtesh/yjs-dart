@@ -18,7 +18,7 @@ import 'utils/event_handler.dart';
 import 'utils/id.dart';
 import 'utils/id_set.dart' show createIdSet, mergeIdSets, IdSet;
 import 'utils/struct_store.dart'
-    show getState, getItemCleanStart, createDeleteSetFromStructStore;
+    show getState, getItemCleanStart, createDeleteSetFromStructStore, StructStore;
 import 'utils/transaction.dart'
     hide callEventHandlerListeners;
 import 'utils/update_decoder.dart';
@@ -669,7 +669,7 @@ class YType<EventType> {
                  ops.add(op);
                  str = '';
                }
-               var val = node.content.getContent();
+               dynamic val = node.content.getContent();
                if (val is List && val.length == 1) {
                  val = val[0];
                }
@@ -688,7 +688,7 @@ class YType<EventType> {
                  ops.add(op);
                  str = '';
                }
-               var val = node.content.getContent();
+               dynamic val = node.content.getContent();
                 if (val is List && val.length == 1) {
                  val = val[0];
                }
