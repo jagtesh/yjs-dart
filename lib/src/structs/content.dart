@@ -497,36 +497,46 @@ class ContentType implements AbstractContent {
 
   @override
   void delete(Transaction transaction) {
-    var item = type.start;
+    var item = type.yStart;
     while (item != null) {
       if (!item.deleted) {
         item.delete(transaction);
-      } else {
-        addToIdSet(transaction.deleteSet, item.id.client, item.id.clock, item.length);
+      } else if (!transaction.insertSet.hasId(item.id)) {
+        // Already deleted, not in this transaction: add to mergeStructs so it
+        // can be merged after the transaction (mirrors JS _mergeStructs.push).
+        transaction.mergeStructs.add(item);
       }
       item = item.right as Item?;
     }
     type.yMap.forEach((_, mapItem) {
       if (!mapItem.deleted) {
         mapItem.delete(transaction);
-      } else {
-        addToIdSet(transaction.deleteSet, mapItem.id.client, mapItem.id.clock, mapItem.length);
+      } else if (!transaction.insertSet.hasId(mapItem.id)) {
+        transaction.mergeStructs.add(mapItem);
       }
     });
-    // ignore: avoid_dynamic_calls
-    (transaction.doc.store as dynamic).gc.add(this);
+    // Remove this type from the changed set — it was deleted, not modified.
+    transaction.changed.remove(type);
   }
 
   @override
   void gc(dynamic store) {
-    var item = type.start;
+    // GC the linked list chain starting at yStart.
+    var item = type.yStart;
     while (item != null) {
       item.gc(store, true);
       item = item.right as Item?;
     }
+    type.yStart = null;
+    // GC each yMap entry's full left-chain (newest → oldest).
     type.yMap.forEach((_, mapItem) {
-      mapItem.gc(store, true);
+      var m = mapItem as Item?;
+      while (m != null) {
+        m.gc(store, true);
+        m = m.left as Item?;
+      }
     });
+    type.yMap.clear();
   }
 
   @override
