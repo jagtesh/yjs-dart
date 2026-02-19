@@ -22,7 +22,8 @@ import '../utils/struct_store.dart'
         addStructToStore,
         getStateVector,
         getItemCleanStart,
-        getItem;
+        getItem,
+        findIndexSS;
 import '../utils/transaction.dart' show transact, Transaction;
 import '../utils/update_decoder.dart' show UpdateDecoderV1, UpdateDecoderV2;
 import '../utils/update_encoder.dart'
