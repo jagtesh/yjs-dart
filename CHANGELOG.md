@@ -1,6 +1,8 @@
 # Changelog
 
-## 1.1.9
+## 1.1.10
+
+-   **Fix**: Fixed a critical serialization bug where `YMap`, `YArray`, and `YText` failed to set their `legacyTypeRef` in the constructor, causing them to all be written to the binary stream as `YXmlFragment` (type ID 4). They now correctly serialize with `typeRefMap` (1), `typeRefArray` (0), and `typeRefText` (2).
 
 -   **Fix**: Fixed an off by 1 bug that occured when removing an item from YArray.
 

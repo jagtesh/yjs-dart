@@ -7,7 +7,9 @@ import 'abstract_type.dart';
 ///
 /// Mirrors: `YArray` in YArray.js
 class YArray<T> extends AbstractType<dynamic> {
-  YArray() : super();
+  YArray() : super() {
+    legacyTypeRef = typeRefArray;
+  }
 
   /// Inserts content at [index].
   void insert(int index, List<T> content) {

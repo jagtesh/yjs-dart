@@ -7,7 +7,9 @@ import 'abstract_type.dart';
 ///
 /// Mirrors: `YMap` in YMap.js
 class YMap<T> extends AbstractType<dynamic> {
-  YMap() : super();
+  YMap() : super() {
+    legacyTypeRef = typeRefMap;
+  }
 
   /// Sets or updates an attribute.
   void set(String key, T value) {

@@ -13,6 +13,7 @@ import '../utils/id.dart';
 /// Mirrors: `YText` in YText.js
 class YText extends AbstractType<dynamic> {
   YText([String? string]) : super() {
+      legacyTypeRef = typeRefText;
       if (string != null) {
           insert(0, string);
       }
