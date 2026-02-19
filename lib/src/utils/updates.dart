@@ -20,6 +20,7 @@ import '../utils/struct_store.dart'
     show
         StructStore,
         addStructToStore,
+        getState,
         getStateVector,
         getItemCleanStart,
         getItem,
