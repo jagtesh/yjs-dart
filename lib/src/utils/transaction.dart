@@ -768,7 +768,7 @@ T transact<T>(dynamic doc, T Function(Transaction) f,
 void callEventHandlerListeners(dynamic eH, dynamic event, Transaction tr) {
   // ignore: avoid_dynamic_calls
   final listeners = eH.l as List;
-  for (final listener in List.from(listeners)) {
+  for (final listener in List<dynamic>.from(listeners)) {
     try {
       // ignore: avoid_dynamic_calls
       listener(event, tr);

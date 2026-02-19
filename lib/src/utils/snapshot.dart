@@ -9,6 +9,7 @@ import '../lib0/decoding.dart' as decoding;
 import '../lib0/encoding.dart' as encoding;
 import '../structs/item.dart' show Item;
 import '../utils/id.dart' show createID;
+import '../utils/transaction.dart';
 import '../utils/id_set.dart'
     hide createDeleteSetFromStructStore, findIndexSS, iterateStructsByIdSet;
 import '../utils/struct_store.dart'
@@ -170,7 +171,7 @@ dynamic createDocFromSnapshot(dynamic originDoc, Snapshot snap,
   final encoder = UpdateEncoderV2();
 
   // ignore: avoid_dynamic_calls
-  originDoc.transact((transaction) {
+  originDoc.transact((Transaction transaction) {
     var size = 0;
     sv.forEach((client, clock) {
       if (clock > 0) size++;

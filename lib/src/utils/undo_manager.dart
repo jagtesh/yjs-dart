@@ -4,7 +4,6 @@
 library;
 
 import '../lib0/observable.dart';
-import '../structs/gc.dart' show GC;
 import '../structs/item.dart' show Item, keepItem;
 import '../utils/id.dart' show createID;
 import '../utils/id_set.dart'
