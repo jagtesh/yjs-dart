@@ -18,6 +18,9 @@ import '../utils/id_set.dart'
         createInsertSetFromStructStore,
         createDeleteSetFromStructStore;
 import '../utils/update_decoder.dart' show IdSetDecoderV2;
+
+/// Yjs version.
+const String yjsVersion = '14.0.0-22'; // Hardcoding based on context, will verify with vendor file.
 import '../utils/update_encoder.dart' show IdSetEncoderV2;
 
 /// Version constant.

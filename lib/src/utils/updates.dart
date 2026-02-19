@@ -27,7 +27,8 @@ import '../utils/struct_store.dart'
         getItem,
         findIndexSS;
 import '../utils/transaction.dart' show transact, Transaction;
-import '../utils/update_decoder.dart' show UpdateDecoderV1, UpdateDecoderV2;
+import '../utils/update_decoder.dart'
+    show UpdateDecoderV1, UpdateDecoderV2, IdSetDecoderV1, IdSetDecoderV2;
 import '../utils/update_encoder.dart'
     show
         AbstractUpdateEncoder,
