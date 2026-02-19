@@ -281,7 +281,6 @@ void yjsReadUpdate(
     (transaction) {
       transaction.local = false;
       var retry = false;
-      print('[yjsReadUpdate] START integration');
       // ignore: avoid_dynamic_calls
       final store = transaction.doc.store as StructStore;
       final ss = readStructSet(structDecoder, transaction.doc);
@@ -298,9 +297,7 @@ void yjsReadUpdate(
         }
       });
       removeRangesFromStructSet(ss, knownState);
-      print('[yjsReadUpdate] calling _integrateStructs');
       final restStructs = _integrateStructs(transaction, store, ss);
-      print('[yjsReadUpdate] _integrateStructs done, restStructs=${restStructs != null}');
       final pending = store.pendingStructs;
       if (pending != null) {
         for (final entry in pending.missing.entries) {
@@ -347,13 +344,10 @@ void yjsReadUpdate(
         store.pendingDs = dsRest;
       }
       // Matches JS: retry inside transact (nested call reuses same transaction)
-      print('[yjsReadUpdate] retry=$retry pendingStructs=${store.pendingStructs != null}');
       if (retry) {
-        print('[yjsReadUpdate] RETRYING with pendingStructs update');
         final update = store.pendingStructs!.update;
         store.pendingStructs = null;
         applyUpdateV2(transaction.doc, update);
-        print('[yjsReadUpdate] RETRY complete');
       }
     },
     transactionOrigin,
