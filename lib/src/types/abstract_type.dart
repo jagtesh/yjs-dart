@@ -7,8 +7,6 @@
 /// using idiomatic Dart APIs.
 library;
 
-import 'dart:convert' show jsonEncode;
-
 import 'dart:typed_data';
 
 import '../lib0/observable.dart';
@@ -111,7 +109,7 @@ ArraySearchMarker _markPosition(
 /// Find or create a search marker for [yarray] at [index].
 ///
 /// Mirrors: `findMarker` in ytype.js
-ArraySearchMarker? findMarker(AbstractType yarray, int index) {
+ArraySearchMarker? findMarker(AbstractType<dynamic> yarray, int index) {
   if (yarray.yStart == null ||
       index == 0 ||
       yarray.searchMarker == null) {
@@ -541,7 +539,7 @@ void typeListInsertGenerics(Transaction transaction, AbstractType<dynamic> paren
     n = marker.p;
     index -= marker.index;
     if (index == 0) {
-      n = n!.left as Item?;
+      n = n.left as Item?;
       index += (n != null && n.countable && !n.deleted) ? n.length : 0;
     }
   }
