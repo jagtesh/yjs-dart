@@ -22,6 +22,11 @@ class GC extends AbstractStruct {
 
   void delete() {}
 
+  /// GC never has missing dependencies.
+  ///
+  /// Mirrors: `GC.getMissing` in GC.js
+  dynamic getMissing(dynamic transaction, dynamic store) => null;
+
   @override
   bool mergeWith(AbstractStruct right) {
     if (right is! GC) return false;

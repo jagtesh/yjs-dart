@@ -168,6 +168,8 @@ export 'src/lib0/decoding.dart'
         Decoder,
         createDecoder,
         readVarUint,
+        readVarInt,
         readVarString,
         readVarUint8Array,
-        hasContent;
+        hasContent,
+        clone;

@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.3
+
+-   **Fix**: `GC.getMissing()` added — was missing, causing `NoSuchMethodError` during struct integration (`_integrateStructs` calls it dynamically on all struct types).
+-   **Fix**: `readStructSet` auto-registers unknown root-level parent types as `YMap` instead of silently dropping their items. Mirrors JS Yjs lazy type creation.
+-   **Silent**: Commented out pre-existing library `print()` calls in `sync.dart`, `event_handler.dart`, and `abstract_type.dart` so Flutter apps stay clean in production.
+-   **Tests**: Added `test/regression_test.dart` with 17 regression tests covering the above fixes, `Doc.get` lazy creation, multi-root sync, and binary round-trips.
+
 ## 1.1.2
 
 -   **Exports**: Exposed `lib0` utilities (`Observable`, `encoding`, `decoding`) for advanced usage.

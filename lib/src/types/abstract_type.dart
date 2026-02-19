@@ -40,8 +40,7 @@ const int typeRefXmlText = 6;
 
 void warnPrematureAccess() {
   // ignore: avoid_print
-  print(
-      'Invalid access: Add Yjs type to a document before reading data.');
+  // print('Invalid access: Add Yjs type to a document before reading data.');
 }
 
 bool equalAttrs(Object? a, Object? b) {

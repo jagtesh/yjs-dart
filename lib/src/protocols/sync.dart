@@ -51,8 +51,7 @@ void readSyncStep2(
     applyUpdate(doc, decoding.readVarUint8Array(decoder), transactionOrigin);
   } catch (e) {
     // Errors thrown by event handlers should not crash the sync loop.
-    // ignore: avoid_print
-    print('Caught error while handling a Yjs update: $e');
+    // Uncomment to debug: print('Caught error while handling a Yjs update: $e');
   }
 }
 

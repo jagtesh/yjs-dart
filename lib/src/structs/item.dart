@@ -516,6 +516,8 @@ class Item extends AbstractStruct {
       if (parentSub == null && countable && !deleted) {
         // ignore: avoid_dynamic_calls
         (parent as dynamic).yLength += length;
+      } else if (parentSub != null) {
+        // Map entry set
       }
 
       addToIdSet(tr.insertSet, id.client, id.clock, length);

@@ -154,7 +154,7 @@ class Doc extends Observable<String> implements YStructure {
   /// or one of the convenience methods ([getText], [getArray], [getMap]) should be used.
   ///
   /// Note: The default constructor `YType()` is no longer valid as `YType` is abstract.
-  T get<T extends AbstractType<dynamic>>(String name, [T Function()? typeConstructor]) {
+  T? get<T extends AbstractType<dynamic>>(String name, [T Function()? typeConstructor]) {
     final existing = share[name];
     if (existing != null) {
       if (existing is T) return existing;
@@ -164,9 +164,7 @@ class Doc extends Observable<String> implements YStructure {
     }
     
     if (typeConstructor == null) {
-        // We cannot instantiate T directly if it's a generic variable without a constructor.
-        // However, we can check T's type if possible, or throw.
-        throw ArgumentError('typeConstructor is required for new types');
+        return null; // Return null if not found and no constructor provided
     }
     
     final type = typeConstructor();
@@ -175,14 +173,14 @@ class Doc extends Observable<String> implements YStructure {
     return type;
   }
 
-  /// Get or create a YText.
-  YText getText(String name) => get<YText>(name, () => YText());
+  /// Get a YText type.
+  YText? getText(String name) => get<YText>(name, () => YText());
 
-  /// Get or create a YArray.
-  YArray<T> getArray<T>(String name) => get<YArray<T>>(name, () => YArray<T>());
+  /// Get a YArray type.
+  YArray<T>? getArray<T>(String name) => get<YArray<T>>(name, () => YArray<T>());
 
-  /// Get or create a YMap.
-  YMap<T> getMap<T>(String name) => get<YMap<T>>(name, () => YMap<T>());
+  /// Get a YMap type.
+  YMap<T>? getMap<T>(String name) => get<YMap<T>>(name, () => YMap<T>());
 
   /// Execute [f] in a transaction using the full cleanup pipeline.
   T transactFull<T>(T Function(tr_lib.Transaction tr) f, [Object? origin]) {
