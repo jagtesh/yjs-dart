@@ -13,7 +13,8 @@ import '../structs/gc.dart';
 import '../structs/item.dart';
 import '../structs/skip.dart';
 import '../utils/id.dart';
-import '../utils/id_set.dart' show IdSet, writeIdSet, readIdSet;
+import '../utils/id_set.dart'
+    show IdSet, writeIdSet, readIdSet, createIdSet, readAndApplyDeleteSet;
 import '../utils/struct_set.dart'
     show StructSet, StructRange, readStructSet, removeRangesFromStructSet;
 import '../utils/struct_store.dart'
