@@ -621,21 +621,22 @@ class YType<EventType> {
       var str = '';
       var node = yStart;
 
-      final dst = <String, Object?>{};
+      final dst = createIdSet();
       if (snapshot != null) {
         // ignore: avoid_dynamic_calls
-        final ds = snapshot.ds;
+        final ds = snapshot.ds as IdSet;
         // ignore: avoid_dynamic_calls
-        final sv = snapshot.sv;
-        // ignore: avoid_dynamic_calls
-        dst.addAll(createDeleteSetFromStructStore(doc!.store));
-        // ignore: avoid_dynamic_calls
+        final store = doc!.store as StructStore;
+        final storeDs = createDeleteSetFromStructStore(store);
+        mergeIdSets([dst, storeDs]);
         ds.clients.forEach((client, ranges) {
-          // ignore: avoid_dynamic_calls
-          ranges.getIds().forEach((id) {
-            // ignore: avoid_dynamic_calls
-            dst[client] = mergeIdSets([dst[client], createIdSet(client, id.clock, id.len)]);
-          });
+          final clientranges = ranges.getIds();
+          for (final id in clientranges) {
+             // ignore: avoid_dynamic_calls
+             final range = createIdSet();
+             range.add(client, id.clock, id.len);
+             mergeIdSets([dst, range]);
+          }
         });
       }
 
@@ -650,7 +651,7 @@ class YType<EventType> {
             }
           } else if (node.content is! ContentType && node.content is! ContentEmbed && node.countable && !node.deleted) {
              final content = node.content;
-             var val = (content as dynamic).getContent();
+             var val = (content as dynamic).getContent(); // content is AbstractContent
              if (content.length > 1 && content is! ContentString) {
                 val = [val];
              }
@@ -661,15 +662,34 @@ class YType<EventType> {
              ops.add({'insert': val, ...currentAttributes});
           } else if (node.content is ContentString && node.countable && !node.deleted) {
             str += (node.content as ContentString).str;
+                    Map<String, Object?>.from(currentAttributes);
+              }
+              ops.add(op);
+              str = '';
+            }
+            final val = node.content.getContent();
+            final op = <String, Object?>{
+              'insert': val.length == 1 ? val[0] : val
+            };
+            if (currentAttributes.isNotEmpty) {
+              op['attributes'] =
+                  Map<String, Object?>.from(currentAttributes);
+            }
+            ops.add(op);
           }
         }
-        node = node.right as Item?;
       }
+      node = node.right as Item?;
+    }
 
-      if (str.isNotEmpty) {
-        ops.add({'insert': str, ...currentAttributes});
+    if (str.isNotEmpty) {
+      final op = <String, Object?>{'insert': str};
+      if (currentAttributes.isNotEmpty) {
+        op['attributes'] = Map<String, Object?>.from(currentAttributes);
       }
-      return ops;
+      ops.add(op);
+    }
+    return ops;
   }
 
   // -------------------------------------------------------------------------
