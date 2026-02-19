@@ -546,12 +546,6 @@ ContentType readContentType(dynamic decoder) {
   return ContentType(type);
 }
 
-/// Placeholder for a YType that hasn't been constructed yet.
-class _TypeRefPlaceholder {
-  final int typeRef;
-  _TypeRefPlaceholder(this.typeRef);
-}
-
 // ─── ContentDoc ───────────────────────────────────────────────────────────────
 
 const int contentDocRefNumber = 9;

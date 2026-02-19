@@ -10,12 +10,10 @@ import '../structs/content.dart' show ContentType;
 import '../structs/gc.dart';
 import '../utils/id.dart';
 import '../utils/id_set.dart' hide findIndexSS;
-import '../utils/update_encoder.dart';
-import '../utils/update_decoder.dart';
-import '../utils/transaction.dart';
+import '../types/abstract_type.dart';
+import '../types/utils.dart' show readYType;
 import '../utils/struct_store.dart'
     show getState, getItem, getItemCleanStart, getItemCleanEnd, addStructToStore, replaceStruct, findIndexSS;
-import '../y_type.dart' show readYType;
 
 // ---------------------------------------------------------------------------
 // Binary bit constants (mirrors lib0/binary.js)
