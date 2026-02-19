@@ -129,3 +129,26 @@ export 'src/utils/updates.dart'
         encodeStateVectorV2,
         encodeStateVectorFromUpdate,
         encodeStateVectorFromUpdateV2;
+
+// Protocols
+export 'src/protocols/auth.dart'
+    show writePermissionDenied, readAuthMessage, messagePermissionDenied;
+export 'src/protocols/awareness.dart'
+    show
+        Awareness,
+        encodeAwarenessUpdate,
+        applyAwarenessUpdate,
+        removeAwarenessStates,
+        modifyAwarenessUpdate;
+export 'src/protocols/sync.dart'
+    show
+        writeSyncStep1,
+        writeSyncStep2,
+        readSyncStep1,
+        readSyncStep2,
+        writeUpdate,
+        readUpdate,
+        readSyncMessage,
+        messageSyncStep1,
+        messageSyncStep2,
+        messageYjsUpdate;
