@@ -13,7 +13,6 @@ import '../structs/gc.dart';
 import '../structs/item.dart';
 import '../structs/skip.dart';
 import '../utils/id.dart';
-import '../utils/id_set.dart'
 import '../utils/id_set.dart' show IdSet, writeIdSet, readIdSet;
 import '../utils/struct_set.dart'
     show StructSet, StructRange, readStructSet, removeRangesFromStructSet;
@@ -26,7 +25,7 @@ import '../utils/struct_store.dart'
         getItem;
 import '../utils/transaction.dart' show transact, Transaction;
 import '../utils/update_decoder.dart' show UpdateDecoderV1, UpdateDecoderV2;
-import '../utils/update_encoder.dart'
+import '../utils/update_encoder.dart' show UpdateEncoderV1, UpdateEncoderV2;
         UpdateEncoderV1,
         UpdateEncoderV2,
         IdSetEncoderV1,
