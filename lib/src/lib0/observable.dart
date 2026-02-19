@@ -29,7 +29,7 @@ class Observable<EventName> {
   /// Register a listener that fires only once.
   void once(EventName eventName, Function f) {
     late final Function wrapper;
-    wrapper = ([a, b, c, d]) {
+    wrapper = ([Object? a, Object? b, Object? c, Object? d]) {
       off(eventName, wrapper);
       Function.apply(f, [a, b, c, d].where((x) => x != null).toList());
     };
