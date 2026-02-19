@@ -23,10 +23,10 @@ AbstractType<dynamic> readYType(dynamic decoder) {
   
   switch (typeRef) {
     case typeRefArray:
-      ytype = YArray();
+      ytype = YArray<dynamic>();
       break;
     case typeRefMap:
-      ytype = YMap();
+      ytype = YMap<dynamic>();
       break;
     case typeRefText:
       ytype = YText();

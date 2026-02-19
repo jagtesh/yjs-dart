@@ -93,7 +93,7 @@ class YText extends AbstractType<dynamic> {
          // ignore: avoid_dynamic_calls
          final ds = snapshot.ds as IdSet;
          // ignore: avoid_dynamic_calls
-         final store = doc!.store as StructStore;
+         final store = doc!.store;
          final storeDs = createDeleteSetFromStructStore(store);
          mergeIdSets([dst, storeDs]);
          ds.clients.forEach((client, ranges) {
