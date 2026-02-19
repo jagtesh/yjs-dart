@@ -1311,27 +1311,7 @@ void _updateCurrentAttributes(
 // Text formatting helpers
 // ---------------------------------------------------------------------------
 
-/// Check if two attribute values are equal.
-///
-/// Mirrors: `equalAttrs` in ytype.js
-bool equalAttrs(Object? a, Object? b) {
-  if (a == b) return true;
-  if (a is Map && b is Map) {
-    if (a.length != b.length) return false;
-    for (final key in a.keys) {
-      if (!b.containsKey(key) || !equalAttrs(a[key], b[key])) return false;
-    }
-    return true;
-  }
-  if (a is List && b is List) {
-    if (a.length != b.length) return false;
-    for (var i = 0; i < a.length; i++) {
-        if (!equalAttrs(a[i], b[i])) return false;
-    }
-    return true;
-  }
-  return false;
-}
+
 
 /// Skip forward while the current attributes already match.
 ///
