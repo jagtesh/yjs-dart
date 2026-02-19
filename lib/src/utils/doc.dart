@@ -242,11 +242,11 @@ Doc cloneDoc(Doc ydoc, [DocOpts? opts]) {
     // Copy array content
     final arr = type.toArray();
     if (arr.isNotEmpty) {
-      newType.insert(0, arr.map((c) => c is YType ? c.clone() : c).toList());
+      newType.insert(0, arr.map((c) => c is YType ? (c as YType).clone() : c).toList());
     }
     // Copy map content
     type.forEachAttr((val, attrKey, _) {
-      newType.setAttr(attrKey, val is YType ? val.clone() : val);
+      newType.setAttr(attrKey, val is YType ? (val as YType).clone() : val);
     });
   });
   return clone;
