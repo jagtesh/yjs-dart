@@ -10,6 +10,9 @@ import 'dart:typed_data';
 import '../structs/item.dart';
 import '../utils/id_set.dart' show addToIdSet;
 import '../utils/transaction.dart';
+import '../types/abstract_type.dart';
+import '../types/utils.dart';
+import '../utils/doc.dart';
 
 // ─── ContentAny ──────────────────────────────────────────────────────────────
 
@@ -461,11 +464,11 @@ ContentString readContentString(dynamic decoder) {
 
 const int contentTypeRefNumber = 7;
 
-/// Content holding a nested YType.
+/// Content holding a nested AbstractType.
 ///
 /// Mirrors: `ContentType` in ContentType.js
 class ContentType implements AbstractContent {
-  final dynamic type; // YType
+  AbstractType<dynamic> type;
 
   ContentType(this.type);
 
@@ -479,7 +482,7 @@ class ContentType implements AbstractContent {
   List<Object?> getContent() => [type];
 
   @override
-  ContentType copy() => ContentType(type);
+  ContentType copy() => ContentType(type.clone());
 
   @override
   AbstractContent splice(int offset) => throw StateError('ContentType cannot be spliced');
@@ -489,59 +492,41 @@ class ContentType implements AbstractContent {
 
   @override
   void integrate(Transaction transaction, Item item) {
-    // ignore: avoid_dynamic_calls
-    (type as dynamic).integrate(transaction.doc, item);
+    type.integrate(transaction.doc as Doc, item);
   }
 
   @override
   void delete(Transaction transaction) {
-    // ignore: avoid_dynamic_calls
-    var item = (type as dynamic).yStart as Item?;
+    var item = type.start;
     while (item != null) {
       if (!item.deleted) {
         item.delete(transaction);
       } else {
-        // GC'd items need their length subtracted from deleteSet
         addToIdSet(transaction.deleteSet, item.id.client, item.id.clock, item.length);
       }
       item = item.right as Item?;
     }
-    // ignore: avoid_dynamic_calls
-    (type as dynamic).yMap.forEach((_, mapItem) {
-      var mi = mapItem as Item?;
-      while (mi != null) {
-        if (!mi.deleted) {
-          mi.delete(transaction);
-        } else {
-          addToIdSet(transaction.deleteSet, mi.id.client, mi.id.clock, mi.length);
-        }
-        mi = mi.left as Item?;
+    type.yMap.forEach((_, mapItem) {
+      if (!mapItem.deleted) {
+        mapItem.delete(transaction);
+      } else {
+        addToIdSet(transaction.deleteSet, mapItem.id.client, mapItem.id.clock, mapItem.length);
       }
     });
     // ignore: avoid_dynamic_calls
-    (type as dynamic).yItem = null;
+    (transaction.doc.store as dynamic).gc.add(this);
   }
 
   @override
   void gc(dynamic store) {
-    // ignore: avoid_dynamic_calls
-    var item = (type as dynamic).yStart as Item?;
+    var item = type.start;
     while (item != null) {
       item.gc(store, true);
       item = item.right as Item?;
     }
-    // ignore: avoid_dynamic_calls
-    (type as dynamic).yStart = null;
-    // ignore: avoid_dynamic_calls
-    (type as dynamic).yMap.forEach((_, mapItem) {
-      var mi = mapItem as Item?;
-      while (mi != null) {
-        mi.gc(store, true);
-        mi = mi.left as Item?;
-      }
+    type.yMap.forEach((_, mapItem) {
+      mapItem.gc(store, true);
     });
-    // ignore: avoid_dynamic_calls
-    (type as dynamic).yMap.clear();
   }
 
   @override
@@ -557,9 +542,8 @@ class ContentType implements AbstractContent {
 /// Read ContentType from [decoder].
 ContentType readContentType(dynamic decoder) {
   // ignore: avoid_dynamic_calls
-  final typeRef = decoder.readTypeRef() as int;
-  // Type construction is deferred to y_type.dart
-  return ContentType(_TypeRefPlaceholder(typeRef));
+  final type = readYType(decoder);
+  return ContentType(type);
 }
 
 /// Placeholder for a YType that hasn't been constructed yet.

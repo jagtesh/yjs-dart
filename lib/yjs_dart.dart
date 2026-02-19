@@ -6,7 +6,7 @@ library yjs_dart;
 // Core types
 export 'src/utils/doc.dart' show Doc, DocOpts, generateNewClientId;
 export 'src/utils/transaction.dart' show Transaction, transact;
-export 'src/y_type.dart' show YType;
+export 'src/y_type.dart' show YType, AbstractType, YArray, YMap, YText, YXmlFragment;
 export 'src/utils/y_event.dart' show YEvent;
 
 // Structs

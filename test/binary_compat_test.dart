@@ -41,42 +41,42 @@ void main() {
     test('empty doc', () {
       final f = fixtures['empty_doc'];
       final doc = Doc(DocOpts(clientID: 1));
-      expect(encodeStateVector(doc), toBytes(f['sv']));
-      expect(encodeStateAsUpdate(doc), toBytes(f['update']));
+      expect(encodeStateVector(doc), toBytes(f['sv'] as List));
+      expect(encodeStateAsUpdate(doc), toBytes(f['update'] as List));
     });
 
     test('array insert', () {
       final f = fixtures['array_insert'];
       final doc = Doc(DocOpts(clientID: 1));
-      final arr = doc.get('arr', () => YType());
+      final arr = doc.getArray('arr');
       arr.insert(0, ['a', 'b', 'c']);
-      expect(encodeStateVector(doc), toBytes(f['sv']));
-      expect(encodeStateAsUpdate(doc), toBytes(f['update']));
+      expect(encodeStateVector(doc), toBytes(f['sv'] as List));
+      expect(encodeStateAsUpdate(doc), toBytes(f['update'] as List));
       expect(arr.toArray(), f['content']);
     });
 
     test('array push', () {
       final f = fixtures['array_push'];
       final doc = Doc(DocOpts(clientID: 1));
-      final arr = doc.get('arr', () => YType());
+      final arr = doc.getArray('arr');
       arr.insert(0, ['a', 'b', 'c']);
       final svBefore = encodeStateVector(doc);
       arr.push([42]);
-      expect(encodeStateVector(doc), toBytes(f['sv']));
-      expect(encodeStateAsUpdate(doc), toBytes(f['update']));
+      expect(encodeStateVector(doc), toBytes(f['sv'] as List));
+      expect(encodeStateAsUpdate(doc), toBytes(f['update'] as List));
       // Incremental update (diff from svBefore)
-      expect(encodeStateAsUpdate(doc, svBefore), toBytes(f['inc_update']));
+      expect(encodeStateAsUpdate(doc, svBefore), toBytes(f['inc_update'] as List));
       expect(arr.toArray(), f['content']);
     });
 
     test('array delete', () {
       final f = fixtures['array_delete'];
       final doc = Doc(DocOpts(clientID: 1));
-      final arr = doc.get('arr', () => YType());
+      final arr = doc.getArray('arr');
       arr.insert(0, ['a', 'b', 'c']);
       arr.delete(1, 1); // delete 'b'
-      expect(encodeStateVector(doc), toBytes(f['sv']));
-      expect(encodeStateAsUpdate(doc), toBytes(f['update']));
+      expect(encodeStateVector(doc), toBytes(f['sv'] as List));
+      expect(encodeStateAsUpdate(doc), toBytes(f['update'] as List));
       expect(arr.toArray(), f['content']);
     });
 
@@ -84,57 +84,57 @@ void main() {
     test('array insert at index (split)', () {
       final f = fixtures['array_insert_at'];
       final doc = Doc(DocOpts(clientID: 1));
-      final arr = doc.get('arr', () => YType());
+      final arr = doc.getArray('arr');
       arr.insert(0, ['a', 'b', 'c']);
       arr.insert(1, ['x']); // insert 'x' after 'a'
-      expect(encodeStateVector(doc), toBytes(f['sv']));
-      expect(encodeStateAsUpdate(doc), toBytes(f['update']));
+      expect(encodeStateVector(doc), toBytes(f['sv'] as List));
+      expect(encodeStateAsUpdate(doc), toBytes(f['update'] as List));
       expect(arr.toArray(), f['content']);
     });
 
     test('map attributes', () {
       final f = fixtures['map_attrs'];
       final doc = Doc(DocOpts(clientID: 1));
-      final map = doc.get('map', () => YType());
-      map.setAttr('key1', 'hello');
-      map.setAttr('key2', 123);
-      map.setAttr('flag', true);
-      expect(encodeStateVector(doc), toBytes(f['sv']));
-      expect(encodeStateAsUpdate(doc), toBytes(f['update']));
-      expect(map.getAttrs(), f['attrs']);
+      final map = doc.getMap('map');
+      map.set('key1', 'hello');
+      map.set('key2', 123);
+      map.set('flag', true);
+      expect(encodeStateVector(doc), toBytes(f['sv'] as List));
+      expect(encodeStateAsUpdate(doc), toBytes(f['update'] as List));
+      expect(map.toMap(), f['attrs']);
     });
 
     test('mixed array + map', () {
       final f = fixtures['mixed'];
       final doc = Doc(DocOpts(clientID: 1));
-      final arr = doc.get('arr', () => YType());
-      final map = doc.get('map', () => YType());
+      final arr = doc.getArray('arr');
+      final map = doc.getMap('map');
       arr.insert(0, [1, 2, 3]);
-      map.setAttr('name', 'test');
-      expect(encodeStateVector(doc), toBytes(f['sv']));
-      expect(encodeStateAsUpdate(doc), toBytes(f['update']));
+      map.set('name', 'test');
+      expect(encodeStateVector(doc), toBytes(f['sv'] as List));
+      expect(encodeStateAsUpdate(doc), toBytes(f['update'] as List));
       expect(arr.toArray(), f['arr_content']);
-      expect(map.getAttrs(), f['map_attrs']);
+      expect(map.toMap(), f['map_attrs']);
     });
 
     test('nested type', () {
       final f = fixtures['nested_type'];
       final doc = Doc(DocOpts(clientID: 1));
-      final map = doc.get('map', () => YType());
-      final inner = YType();
-      map.setAttr('child', inner);
-      (map.getAttr('child') as YType).setAttr('deep', 'value');
-      expect(encodeStateVector(doc), toBytes(f['sv']));
-      expect(encodeStateAsUpdate(doc), toBytes(f['update']));
+      final map = doc.getMap('map');
+      final inner = YXmlFragment();
+      map.set('child', inner);
+      (map.get('child') as YXmlFragment).setAttribute('deep', 'value');
+      expect(encodeStateVector(doc), toBytes(f['sv'] as List));
+      expect(encodeStateAsUpdate(doc), toBytes(f['update'] as List));
     });
 
     test('content types (string, int, bool, null, double)', () {
       final f = fixtures['content_types'];
       final doc = Doc(DocOpts(clientID: 1));
-      final arr = doc.get('arr', () => YType());
+      final arr = doc.getArray('arr');
       arr.insert(0, ['text', 42, true, false, null, 3.14]);
-      expect(encodeStateVector(doc), toBytes(f['sv']));
-      expect(encodeStateAsUpdate(doc), toBytes(f['update']));
+      expect(encodeStateVector(doc), toBytes(f['sv'] as List));
+      expect(encodeStateAsUpdate(doc), toBytes(f['update'] as List));
       expect(arr.toArray(), f['content']);
     });
   });
@@ -144,71 +144,72 @@ void main() {
   // ───────────────────────────────────────────────────────────────────────────
 
   group('Decoding compatibility', () {
+// ...
+    test('apply JS nested type update', () {
+      final f = fixtures['nested_type'];
+      final doc = Doc(DocOpts(clientID: 2));
+      doc.getMap('map');
+      applyUpdate(doc, toBytes(f['update'] as List));
+      final map = doc.getMap('map');
+      final child = map.get('child');
+      expect(child, isA<YXmlFragment>());
+      expect((child as YXmlFragment).getAttribute('deep'), f['deep_value']);
+    });
     test('apply JS array insert update', () {
       final f = fixtures['array_insert'];
       final doc = Doc(DocOpts(clientID: 2));
-      doc.get('arr', () => YType());
-      applyUpdate(doc, toBytes(f['update']));
-      final arr = doc.get('arr', () => YType());
+      doc.getArray('arr');
+      applyUpdate(doc, toBytes(f['update'] as List));
+      final arr = doc.getArray('arr');
       expect(arr.toArray(), f['content']);
     });
 
     test('apply JS array delete update', () {
       final f = fixtures['array_delete'];
       final doc = Doc(DocOpts(clientID: 2));
-      doc.get('arr', () => YType());
-      applyUpdate(doc, toBytes(f['update']));
-      final arr = doc.get('arr', () => YType());
+      doc.getArray('arr');
+      applyUpdate(doc, toBytes(f['update'] as List));
+      final arr = doc.getArray('arr');
       expect(arr.toArray(), f['content']);
     });
 
     test('apply JS array insert-at update', () {
       final f = fixtures['array_insert_at'];
       final doc = Doc(DocOpts(clientID: 2));
-      doc.get('arr', () => YType());
-      applyUpdate(doc, toBytes(f['update']));
-      final arr = doc.get('arr', () => YType());
+      doc.getArray('arr');
+      applyUpdate(doc, toBytes(f['update'] as List));
+      final arr = doc.getArray('arr');
       expect(arr.toArray(), f['content']);
     });
 
     test('apply JS map attributes update', () {
       final f = fixtures['map_attrs'];
       final doc = Doc(DocOpts(clientID: 2));
-      doc.get('map', () => YType());
-      applyUpdate(doc, toBytes(f['update']));
-      final map = doc.get('map', () => YType());
-      expect(map.getAttrs(), f['attrs']);
+      doc.getMap('map');
+      applyUpdate(doc, toBytes(f['update'] as List));
+      final map = doc.getMap('map');
+      expect(map.toMap(), f['attrs']);
     });
 
     test('apply JS mixed update', () {
       final f = fixtures['mixed'];
       final doc = Doc(DocOpts(clientID: 2));
-      doc.get('arr', () => YType());
-      doc.get('map', () => YType());
-      applyUpdate(doc, toBytes(f['update']));
-      final arr = doc.get('arr', () => YType());
-      final map = doc.get('map', () => YType());
+      doc.getArray('arr');
+      doc.getMap('map');
+      applyUpdate(doc, toBytes(f['update'] as List));
+      final arr = doc.getArray('arr');
+      final map = doc.getMap('map');
       expect(arr.toArray(), f['arr_content']);
-      expect(map.getAttrs(), f['map_attrs']);
+      expect(map.toMap(), f['map_attrs']);
     });
 
-    test('apply JS nested type update', () {
-      final f = fixtures['nested_type'];
-      final doc = Doc(DocOpts(clientID: 2));
-      doc.get('map', () => YType());
-      applyUpdate(doc, toBytes(f['update']));
-      final map = doc.get('map', () => YType());
-      final child = map.getAttr('child');
-      expect(child, isA<YType>());
-      expect((child as YType).getAttr('deep'), f['deep_value']);
-    });
 
     test('apply JS content types update', () {
       final f = fixtures['content_types'];
       final doc = Doc(DocOpts(clientID: 2));
-      doc.get('arr', () => YType());
-      applyUpdate(doc, toBytes(f['update']));
-      final arr = doc.get('arr', () => YType());
+      doc.getArray('arr');
+      applyUpdate(doc, toBytes(f['update'] as List));
+      final arr = doc.getArray('arr');
       expect(arr.toArray(), f['content']);
     });
 
@@ -218,12 +219,12 @@ void main() {
 
       // First apply base state
       final doc = Doc(DocOpts(clientID: 2));
-      doc.get('arr', () => YType());
-      applyUpdate(doc, toBytes(f1['update']));
+      doc.getArray('arr');
+      applyUpdate(doc, toBytes(f1['update'] as List));
 
       // Then apply incremental update
-      applyUpdate(doc, toBytes(f2['inc_update']));
-      final arr = doc.get('arr', () => YType());
+      applyUpdate(doc, toBytes(f2['inc_update'] as List));
+      final arr = doc.getArray('arr');
       expect(arr.toArray(), f2['content']);
     });
   });
@@ -236,12 +237,12 @@ void main() {
     test('JS update applied to Dart doc produces same state vector', () {
       final f = fixtures['cross_doc_sync'];
       final doc = Doc(DocOpts(clientID: 2));
-      doc.get('arr', () => YType());
-      applyUpdate(doc, toBytes(f['doc1_update']));
+      doc.getArray('arr');
+      applyUpdate(doc, toBytes(f['doc1_update'] as List));
 
       // State vector should match (same content, different clientID context)
-      expect(encodeStateVector(doc), toBytes(f['doc2_sv_after']));
-      final arr = doc.get('arr', () => YType());
+      expect(encodeStateVector(doc), toBytes(f['doc2_sv_after'] as List));
+      final arr = doc.getArray('arr');
       expect(arr.toArray(), f['doc2_content']);
     });
 
@@ -250,13 +251,13 @@ void main() {
       final doc1 = Doc(DocOpts(clientID: 1));
       final doc2 = Doc(DocOpts(clientID: 2));
 
-      final arr1 = doc1.get('arr', () => YType());
-      doc2.get('arr', () => YType());
+      final arr1 = doc1.getArray('arr');
+      doc2.getArray('arr');
 
       arr1.insert(0, ['from_doc1']);
       applyUpdate(doc2, encodeStateAsUpdate(doc1));
 
-      final arr2 = doc2.get('arr', () => YType());
+      final arr2 = doc2.getArray('arr');
       arr2.push(['from_doc2']);
 
       final sv1 = encodeStateVector(doc1);
@@ -266,12 +267,12 @@ void main() {
       expect(arr1.toArray(), f['doc1_content']);
       expect(arr2.toArray(), f['doc2_content']);
 
-      // State vectors should match each other
+      // State vectors should match
       expect(encodeStateVector(doc1), encodeStateVector(doc2));
 
       // State vectors should match JS reference
-      expect(encodeStateVector(doc1), toBytes(f['doc1_sv']));
-      expect(encodeStateVector(doc2), toBytes(f['doc2_sv']));
+      expect(encodeStateVector(doc1), toBytes(f['doc1_sv'] as List));
+      expect(encodeStateVector(doc2), toBytes(f['doc2_sv'] as List));
     });
   });
 
@@ -282,11 +283,11 @@ void main() {
   group('Round-trip compatibility', () {
     test('array insert round-trip', () {
       final f = fixtures['array_insert'];
-      final jsUpdate = toBytes(f['update']);
+      final jsUpdate = toBytes(f['update'] as List);
 
       // Apply JS update to empty doc
       final doc = Doc(DocOpts(clientID: 2));
-      doc.get('arr', () => YType());
+      doc.getArray('arr');
       applyUpdate(doc, jsUpdate);
 
       // Re-encode and compare
@@ -296,10 +297,10 @@ void main() {
 
     test('array push round-trip', () {
       final f = fixtures['array_push'];
-      final jsUpdate = toBytes(f['update']);
+      final jsUpdate = toBytes(f['update'] as List);
 
       final doc = Doc(DocOpts(clientID: 2));
-      doc.get('arr', () => YType());
+      doc.getArray('arr');
       applyUpdate(doc, jsUpdate);
 
       final dartUpdate = encodeStateAsUpdate(doc);
@@ -308,10 +309,10 @@ void main() {
 
     test('array delete round-trip', () {
       final f = fixtures['array_delete'];
-      final jsUpdate = toBytes(f['update']);
+      final jsUpdate = toBytes(f['update'] as List);
 
       final doc = Doc(DocOpts(clientID: 2));
-      doc.get('arr', () => YType());
+      doc.getArray('arr');
       applyUpdate(doc, jsUpdate);
 
       final dartUpdate = encodeStateAsUpdate(doc);
@@ -320,10 +321,10 @@ void main() {
 
     test('map attrs round-trip', () {
       final f = fixtures['map_attrs'];
-      final jsUpdate = toBytes(f['update']);
+      final jsUpdate = toBytes(f['update'] as List);
 
       final doc = Doc(DocOpts(clientID: 2));
-      doc.get('map', () => YType());
+      doc.getMap('map');
       applyUpdate(doc, jsUpdate);
 
       final dartUpdate = encodeStateAsUpdate(doc);
@@ -332,10 +333,10 @@ void main() {
 
     test('nested type round-trip', () {
       final f = fixtures['nested_type'];
-      final jsUpdate = toBytes(f['update']);
+      final jsUpdate = toBytes(f['update'] as List);
 
       final doc = Doc(DocOpts(clientID: 2));
-      doc.get('map', () => YType());
+      doc.getMap('map');
       applyUpdate(doc, jsUpdate);
 
       final dartUpdate = encodeStateAsUpdate(doc);
@@ -344,10 +345,10 @@ void main() {
 
     test('content types round-trip', () {
       final f = fixtures['content_types'];
-      final jsUpdate = toBytes(f['update']);
+      final jsUpdate = toBytes(f['update'] as List);
 
       final doc = Doc(DocOpts(clientID: 2));
-      doc.get('arr', () => YType());
+      doc.getArray('arr');
       applyUpdate(doc, jsUpdate);
 
       final dartUpdate = encodeStateAsUpdate(doc);
@@ -356,13 +357,13 @@ void main() {
 
     test('empty doc round-trip', () {
       final f = fixtures['empty_doc'];
-      final jsUpdate = toBytes(f['update']);
+      final jsUpdate = toBytes(f['update'] as List);
 
       final doc = Doc(DocOpts(clientID: 1));
 
       final dartSv = encodeStateVector(doc);
       final dartUpdate = encodeStateAsUpdate(doc);
-      expect(dartSv, toBytes(f['sv']));
+      expect(dartSv, toBytes(f['sv'] as List));
       expect(dartUpdate, jsUpdate);
     });
   });

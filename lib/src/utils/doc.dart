@@ -8,6 +8,8 @@ import '../lib0/random.dart' as random;
 import '../utils/struct_store.dart';
 import '../utils/transaction.dart' as tr_lib;
 import '../y_type.dart';
+import 'y_structure.dart';
+import '../structs/item.dart'; // Add import
 
 /// Generate a new unique client ID.
 ///
@@ -57,10 +59,21 @@ class DocOpts {
         gcFilter = gcFilter ?? ((_) => true);
 }
 
-/// A Yjs document - the root container for all shared data.
+/// A Yjs Document.
 ///
 /// Mirrors: `Doc` in Doc.js
-class Doc extends Observable<String> {
+class Doc extends Observable<String> implements YStructure {
+  Item? _item;
+
+  @override
+  Item? get item => _item;
+
+  @override
+  Doc? get doc => this;
+
+  @override
+  tr_lib.Transaction? get transaction => _transaction;
+
   /// Enable garbage collection.
   final bool gc;
 
@@ -137,19 +150,39 @@ class Doc extends Observable<String> {
 
   /// Get or create a shared type by [name].
   ///
-  /// If [typeConstructor] is omitted, a plain `YType()` is created.
-  T get<T extends YType<dynamic>>(String name, [T Function()? typeConstructor]) {
+  /// If [typeConstructor] is omitted, [T] must be a concrete type that can be instantiated,
+  /// or one of the convenience methods ([getText], [getArray], [getMap]) should be used.
+  ///
+  /// Note: The default constructor `YType()` is no longer valid as `YType` is abstract.
+  T get<T extends AbstractType<dynamic>>(String name, [T Function()? typeConstructor]) {
     final existing = share[name];
     if (existing != null) {
       if (existing is T) return existing;
-      // If a generic YType is requested, return the existing one
+      // If a generic AbstractType is requested, return the existing one
+      // This cast might fail if T is specific and existing is different
       return existing as T;
     }
-    final type = typeConstructor != null ? typeConstructor() : YType() as T;
+    
+    if (typeConstructor == null) {
+        // We cannot instantiate T directly if it's a generic variable without a constructor.
+        // However, we can check T's type if possible, or throw.
+        throw ArgumentError('typeConstructor is required for new types');
+    }
+    
+    final type = typeConstructor();
     share[name] = type;
     type.integrate(this, null);
     return type;
   }
+
+  /// Get or create a YText.
+  YText getText(String name) => get<YText>(name, () => YText());
+
+  /// Get or create a YArray.
+  YArray<T> getArray<T>(String name) => get<YArray<T>>(name, () => YArray<T>());
+
+  /// Get or create a YMap.
+  YMap<T> getMap<T>(String name) => get<YMap<T>>(name, () => YMap<T>());
 
   /// Execute [f] in a transaction using the full cleanup pipeline.
   T transactFull<T>(T Function(tr_lib.Transaction tr) f, [Object? origin]) {
@@ -238,18 +271,9 @@ Doc cloneDoc(Doc ydoc, [DocOpts? opts]) {
   // Apply the full state by iterating shared types
   // For each shared type in the original, create a matching type in the clone
   ydoc.share.forEach((key, type) {
-    final newType = clone.get(key, () => YType(type.name));
-    // Copy array content
-    final arr = type.toArray();
-    if (arr.isNotEmpty) {
-      // ignore: avoid_dynamic_calls
-      newType.insert(0, arr.map((c) => c is YType ? (c as dynamic).clone() : c).toList());
-    }
-    // Copy map content
-    type.forEachAttr((val, attrKey, _) {
-      // ignore: avoid_dynamic_calls
-      newType.setAttr(attrKey, val is YType ? (val as dynamic).clone() : val);
-    });
+    final newType = type.clone();
+    newType.integrate(clone, null);
+    clone.share[key] = newType;
   });
   return clone;
 }
