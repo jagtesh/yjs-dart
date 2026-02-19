@@ -12,15 +12,14 @@ import 'dart:convert' show jsonEncode;
 import 'dart:typed_data';
 
 import '../lib0/observable.dart';
-import '../structs/abstract_struct.dart';
 import '../structs/content.dart';
 import '../structs/item.dart';
 import '../utils/event_handler.dart';
 import '../utils/doc.dart';
 import '../utils/id.dart';
-import '../utils/id_set.dart' show createIdSet, mergeIdSets, IdSet;
+import '../utils/snapshot.dart';
 import '../utils/struct_store.dart'
-    show getState, getItemCleanStart, createDeleteSetFromStructStore, StructStore;
+    show getState, getItemCleanStart, StructStore;
 import '../utils/transaction.dart'
     hide callEventHandlerListeners;
 import '../utils/update_decoder.dart';
