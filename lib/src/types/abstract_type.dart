@@ -21,7 +21,6 @@ import '../utils/struct_store.dart'
     show getState, getItemCleanStart;
 import '../utils/transaction.dart'
     hide callEventHandlerListeners;
-import '../utils/update_encoder.dart';
 import '../utils/y_event.dart';
 import '../utils/y_structure.dart';
 
@@ -38,7 +37,7 @@ const int typeRefXmlHook = 5;
 const int typeRefXmlText = 6;
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Helper functions
 // ---------------------------------------------------------------------------
 
 void warnPrematureAccess() {
@@ -59,15 +58,6 @@ bool equalAttrs(Object? a, Object? b) {
     return true;
   }
   return false;
-}
-
-/// JSON-encode a value for toString output.
-String _jsonEncode(Object? v) {
-  try {
-    return jsonEncode(v);
-  } catch (_) {
-    return v.toString();
-  }
 }
 
 // ---------------------------------------------------------------------------
