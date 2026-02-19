@@ -715,23 +715,7 @@ class YType<EventType> {
     return newType;
   }
 
-  YType<EventType> clone() {
-    final cpy = copy();
-    // Copy array content
-    if (yLength > 0) {
-      final arr = toArray();
-      cpy.insert(0, arr);
-    }
-    // Copy map content
-    yMap.forEach((key, item) {
-      if (!item.deleted) {
-        final content = item.content.getContent();
-        final val = content.isNotEmpty ? content[item.length - 1] : null;
-        cpy.setAttr(key, val is YType ? val.clone() : val);
-      }
-    });
-    return cpy;
-  }
+
 }
 
 // ---------------------------------------------------------------------------
