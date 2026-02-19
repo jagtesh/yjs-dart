@@ -3,8 +3,6 @@
 /// Mirrors: yjs/src/utils/StructSet.js (v14.0.0-22)
 library;
 
-import 'dart:typed_data';
-
 import '../lib0/binary.dart' as binary;
 import '../lib0/decoding.dart' as decoding;
 import '../structs/abstract_struct.dart';
@@ -14,7 +12,6 @@ import '../structs/skip.dart';
 import '../utils/id.dart';
 import '../utils/id_set.dart' hide findIndexSS;
 import '../utils/struct_store.dart' show findIndexCleanStart, findIndexSS;
-import '../utils/update_decoder.dart';
 
 // ---------------------------------------------------------------------------
 // StructRange — mirrors JS StructRange class
