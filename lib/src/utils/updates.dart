@@ -14,13 +14,12 @@ import '../structs/item.dart';
 import '../structs/skip.dart';
 import '../utils/id.dart';
 import '../utils/id_set.dart'
-    show IdSet, writeIdSet, readIdSet, createIdSet, readAndApplyDeleteSet;
+    show IdSet, writeIdSet, createIdSet, readAndApplyDeleteSet;
 import '../utils/struct_set.dart'
     show StructSet, StructRange, readStructSet, removeRangesFromStructSet;
 import '../utils/struct_store.dart'
     show
         StructStore,
-        addStructToStore,
         getState,
         getStateVector,
         getItemCleanStart,
