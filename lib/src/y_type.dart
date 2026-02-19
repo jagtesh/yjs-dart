@@ -16,7 +16,7 @@ import 'structs/content.dart';
 import 'structs/item.dart';
 import 'utils/event_handler.dart';
 import 'utils/id.dart';
-import 'utils/id_set.dart' show createIdSet, mergeIdSets;
+import 'utils/id_set.dart' show createIdSet, mergeIdSets, IdSet;
 import 'utils/struct_store.dart'
     show getState, getItemCleanStart, createDeleteSetFromStructStore;
 import 'utils/transaction.dart'
@@ -644,52 +644,73 @@ class YType<EventType> {
         if (isVisible(node, snapshot) || (prevSnapshot != null && isVisible(node, prevSnapshot))) {
           if (node.content is ContentFormat) {
             final content = node.content as ContentFormat;
+            if (str.isNotEmpty) {
+              final op = <String, Object?>{'insert': str};
+              if (currentAttributes.isNotEmpty) {
+                op['attributes'] = Map<String, Object?>.from(currentAttributes);
+              }
+              ops.add(op);
+              str = '';
+            }
             if (content.value == null) {
               currentAttributes.remove(content.key);
             } else {
               currentAttributes[content.key] = content.value;
             }
-          } else if (node.content is! ContentType && node.content is! ContentEmbed && node.countable && !node.deleted) {
-             final content = node.content;
-             var val = (content as dynamic).getContent(); // content is AbstractContent
-             if (content.length > 1 && content is! ContentString) {
-                val = [val];
+          } else if (node.countable && !node.deleted) {
+             if (node.content is ContentString) {
+               str += (node.content as ContentString).str;
+             } else if (node.content is ContentType || node.content is ContentEmbed) {
+               if (str.isNotEmpty) {
+                 final op = <String, Object?>{'insert': str};
+                 if (currentAttributes.isNotEmpty) {
+                   op['attributes'] = Map<String, Object?>.from(currentAttributes);
+                 }
+                 ops.add(op);
+                 str = '';
+               }
+               var val = node.content.getContent();
+               if (val is List && val.length == 1) {
+                 val = val[0];
+               }
+               final op = <String, Object?>{'insert': val};
+               if (currentAttributes.isNotEmpty) {
+                 op['attributes'] = Map<String, Object?>.from(currentAttributes);
+               }
+               ops.add(op);
+             } else {
+               // specific content types like ContentBinary or others
+                if (str.isNotEmpty) {
+                 final op = <String, Object?>{'insert': str};
+                 if (currentAttributes.isNotEmpty) {
+                   op['attributes'] = Map<String, Object?>.from(currentAttributes);
+                 }
+                 ops.add(op);
+                 str = '';
+               }
+               var val = node.content.getContent();
+                if (val is List && val.length == 1) {
+                 val = val[0];
+               }
+               final op = <String, Object?>{'insert': val};
+               if (currentAttributes.isNotEmpty) {
+                 op['attributes'] = Map<String, Object?>.from(currentAttributes);
+               }
+               ops.add(op);
              }
-             if (str.isNotEmpty) {
-               ops.add({'insert': str, ...currentAttributes});
-               str = '';
-             }
-             ops.add({'insert': val, ...currentAttributes});
-          } else if (node.content is ContentString && node.countable && !node.deleted) {
-            str += (node.content as ContentString).str;
-                    Map<String, Object?>.from(currentAttributes);
-              }
-              ops.add(op);
-              str = '';
-            }
-            final val = node.content.getContent();
-            final op = <String, Object?>{
-              'insert': val.length == 1 ? val[0] : val
-            };
-            if (currentAttributes.isNotEmpty) {
-              op['attributes'] =
-                  Map<String, Object?>.from(currentAttributes);
-            }
-            ops.add(op);
           }
         }
+        node = node.right as Item?;
       }
-      node = node.right as Item?;
-    }
 
-    if (str.isNotEmpty) {
-      final op = <String, Object?>{'insert': str};
-      if (currentAttributes.isNotEmpty) {
-        op['attributes'] = Map<String, Object?>.from(currentAttributes);
+      if (str.isNotEmpty) {
+        final op = <String, Object?>{'insert': str};
+        if (currentAttributes.isNotEmpty) {
+          op['attributes'] = Map<String, Object?>.from(currentAttributes);
+        }
+        ops.add(op);
       }
-      ops.add(op);
-    }
-    return ops;
+      return ops;
   }
 
   // -------------------------------------------------------------------------
