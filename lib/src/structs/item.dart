@@ -10,11 +10,10 @@ import '../structs/content.dart' show ContentType;
 import '../structs/gc.dart';
 import '../utils/id.dart';
 import '../utils/id_set.dart' hide findIndexSS;
-import '../types/abstract_type.dart';
 import '../types/utils.dart' show readYType;
 import '../utils/transaction.dart';
 import '../utils/struct_store.dart'
-    show getState, getItem, getItemCleanStart, getItemCleanEnd, addStructToStore, replaceStruct, findIndexSS;
+    show getState, getItem, getItemCleanStart, getItemCleanEnd, addStructToStore, findIndexSS;
 
 // ---------------------------------------------------------------------------
 // Binary bit constants (mirrors lib0/binary.js)
@@ -69,7 +68,7 @@ abstract class AbstractContent {
     item = getItem(store, nextID!) as Item;
     diff = nextID.clock - item.id.clock;
     nextID = item.redone;
-  } while (nextID != null && item is Item);
+  } while (nextID != null);
   return (item: item, diff: diff);
 }
 
