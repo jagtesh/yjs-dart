@@ -769,8 +769,13 @@ void callEventHandlerListeners(dynamic eH, dynamic event, Transaction tr) {
   // ignore: avoid_dynamic_calls
   final listeners = eH.l as List;
   for (final listener in List<dynamic>.from(listeners)) {
-    // ignore: avoid_dynamic_calls
-    listener(event, tr);
+    try {
+      // ignore: avoid_dynamic_calls
+      listener(event, tr);
+    } catch (e, st) {
+      // ignore: avoid_print
+      print('Warning: Yjs event listener threw: $e\n$st');
+    }
   }
 }
 

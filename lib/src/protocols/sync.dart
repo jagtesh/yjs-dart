@@ -47,7 +47,12 @@ void readSyncStep1(
 /// Mirrors: `readSyncStep2` in sync.js
 void readSyncStep2(
     decoding.Decoder decoder, Doc doc, Object? transactionOrigin) {
-  applyUpdate(doc, decoding.readVarUint8Array(decoder), transactionOrigin);
+  try {
+    applyUpdate(doc, decoding.readVarUint8Array(decoder), transactionOrigin);
+  } catch (e, st) {
+    // ignore: avoid_print
+    print('Warning: failed to apply Yjs update: $e\n$st');
+  }
 }
 
 /// Write a raw update message.
