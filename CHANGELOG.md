@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.2
+
+-   **Exports**: Exposed `lib0` utilities (`Observable`, `encoding`, `decoding`) for advanced usage.
+
 ## 1.1.1
 
 -   **Exports**: Exposed `y-protocols` (Sync, Awareness, Auth) via `yjs_dart.dart`.

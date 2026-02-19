@@ -152,3 +152,22 @@ export 'src/protocols/sync.dart'
         messageSyncStep1,
         messageSyncStep2,
         messageYjsUpdate;
+
+// Lib0
+export 'src/lib0/observable.dart' show Observable;
+export 'src/lib0/encoding.dart'
+    show
+        Encoder,
+        createEncoder,
+        toUint8Array,
+        writeVarUint,
+        writeVarString,
+        writeVarUint8Array;
+export 'src/lib0/decoding.dart'
+    show
+        Decoder,
+        createDecoder,
+        readVarUint,
+        readVarString,
+        readVarUint8Array,
+        hasContent;
