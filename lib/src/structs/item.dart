@@ -12,6 +12,7 @@ import '../utils/id.dart';
 import '../utils/id_set.dart' hide findIndexSS;
 import '../types/abstract_type.dart';
 import '../types/utils.dart' show readYType;
+import '../utils/transaction.dart';
 import '../utils/struct_store.dart'
     show getState, getItem, getItemCleanStart, getItemCleanEnd, addStructToStore, replaceStruct, findIndexSS;
 
