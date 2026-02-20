@@ -11,6 +11,7 @@ import '../structs/gc.dart';
 import '../utils/id.dart';
 import '../utils/id_set.dart' hide findIndexSS;
 import '../types/utils.dart' show readYType;
+import '../types/abstract_type.dart' show AbstractType;
 import '../utils/transaction.dart';
 import '../utils/struct_store.dart'
     show getState, getItem, getItemCleanStart, getItemCleanEnd, addStructToStore, findIndexSS;
@@ -385,7 +386,7 @@ class Item extends AbstractStruct {
     // All dependencies present — resolve references
     if (origin != null) {
       left = getItemCleanEnd(transaction, store, origin!) as AbstractStruct;
-      origin = (left as Item).lastId;
+      origin = left!.lastId;
     }
     if (rightOrigin != null) {
       right = getItemCleanStart(transaction, rightOrigin!) as AbstractStruct;
@@ -408,7 +409,7 @@ class Item extends AbstractStruct {
       } else {
         if (parentItem is Item) {
           final content = parentItem.content;
-          parent = content is ContentType ? content.type : content;
+          parent = content is ContentType ? content.type : null;
         }
       }
     }
@@ -426,7 +427,7 @@ class Item extends AbstractStruct {
     if (offset > 0) {
       id = createID(id.client, id.clock + offset);
       left = getItemCleanEnd(tr, tr.doc.store, createID(id.client, id.clock - 1)) as AbstractStruct;
-      origin = (left as Item).lastId;
+      origin = left!.lastId;
       content = content.splice(offset);
       length -= offset;
     }
@@ -441,7 +442,11 @@ class Item extends AbstractStruct {
           o = leftPtr.right;
         } else if (parentSub != null) {
           // ignore: avoid_dynamic_calls
-          o = (parent as dynamic).yMap[parentSub] as AbstractStruct?;
+          if (parent is AbstractType) {
+            o = (parent as dynamic).yMap[parentSub] as AbstractStruct?;
+          } else {
+            o = null;
+          }
           while (o != null && (o as Item?)?.left != null) {
             o = (o as Item).left;
           }
@@ -489,13 +494,20 @@ class Item extends AbstractStruct {
         AbstractStruct? r;
         if (parentSub != null) {
           // ignore: avoid_dynamic_calls
-          r = (parent as dynamic).yMap[parentSub] as AbstractStruct?;
+          if (parent is AbstractType) {
+            r = (parent as dynamic).yMap[parentSub] as AbstractStruct?;
+          } else {
+            r = null;
+          }
           while (r != null && (r as Item?)?.left != null) {
             r = (r as Item).left;
           }
         } else {
-          // ignore: avoid_dynamic_calls
-          r = (parent as dynamic).yStart as AbstractStruct?;
+          if (parent is AbstractType) {
+            r = (parent as dynamic).yStart as AbstractStruct?;
+          } else {
+            r = null;
+          }
           // ignore: avoid_dynamic_calls
           (parent as dynamic).yStart = this;
         }

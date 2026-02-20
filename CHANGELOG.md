@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.11
+
+-   **Feature**: Added `_prelimContent` offline cache to `YMap` and `YArray` which allows nested insertion and setup of shared types before they are integrated into a `Doc`.
+-   **Fix**: Added a `lastId` getter to `AbstractStruct` and enhanced `Item` constructor resolution logic to safely typecast `parent` as `AbstractType`, preventing dynamic cast failures.
+
 ## 1.1.10
 
 -   **Fix**: Fixed a critical serialization bug where `YMap`, `YArray`, and `YText` failed to set their `legacyTypeRef` in the constructor, causing them to all be written to the binary stream as `YXmlFragment` (type ID 4). They now correctly serialize with `typeRefMap` (1), `typeRefArray` (0), and `typeRefText` (2).

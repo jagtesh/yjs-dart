@@ -7,8 +7,19 @@ import 'abstract_type.dart';
 ///
 /// Mirrors: `YArray` in YArray.js
 class YArray<T> extends AbstractType<dynamic> {
+  final List<T> _prelimContent = [];
+
   YArray() : super() {
     legacyTypeRef = typeRefArray;
+  }
+
+  @override
+  void integrate(dynamic doc, dynamic item) {
+    super.integrate(doc, item);
+    if (_prelimContent.isNotEmpty) {
+      insert(0, List.from(_prelimContent));
+      _prelimContent.clear();
+    }
   }
 
   /// Inserts content at [index].
@@ -18,7 +29,7 @@ class YArray<T> extends AbstractType<dynamic> {
         typeListInsertGenerics(tr, this, index, content);
       });
     } else {
-      warnPrematureAccess();
+      _prelimContent.insertAll(index, content);
     }
   }
 

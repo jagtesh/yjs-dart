@@ -211,11 +211,9 @@ void main() {
       final blocks2 = doc2.get<YMap<dynamic>>('blocks')!;
       final meta2 = doc2.get<YMap<dynamic>>('meta')!;
 
-      // Nested ContentType values are decoded as YXmlFragment (yjs-dart default).
-      // In production code, the actual page sub-map data is stored as string
-      // scalars in the nested YMap — the type wrapping is set server-side.
-      expect(pages2.get('page-abc'), isA<YXmlFragment>());
-      expect(blocks2.get('block-xyz'), isA<YXmlFragment>());
+      // Nested ContentType values correctly deserialize to YMap now.
+      expect(pages2.get('page-abc'), isA<YMap<dynamic>>());
+      expect(blocks2.get('block-xyz'), isA<YMap<dynamic>>());
       expect(meta2.get('version'), equals('2.0'));
       expect(meta2.get('updatedAt'), equals(1737561600000.0));
     });
@@ -347,17 +345,19 @@ void main() {
       });
 
       // Sync to doc2
+      final doc1Block = blocks.get('page-1') as YMap<dynamic>;
+      
+      final update = encodeStateAsUpdate(doc1);
+      
       final doc2 = Doc();
       doc2.get<YMap<dynamic>>('blocks', () => YMap<dynamic>());
       applyUpdate(doc2, encodeStateAsUpdate(doc1));
 
       final blocks2 = doc2.get<YMap<dynamic>>('blocks')!;
       final block2 = blocks2.get('page-1') as YMap<dynamic>?;
-      // Note: after sync the nested YMap may come through as YXmlFragment (known
-      // limitation). This test primarily verifies the doc1 array is clean before sync.
-      // The in-doc case must be correct.
-      final childrenInDoc1 = (blocks.get('page-1') as YMap<dynamic>).get('children') as YArray<dynamic>;
-      final arr = childrenInDoc1.toArray();
+      // The array comes through successfully.
+      final ch = (blocks2.get('page-1') as YMap<dynamic>).get('children') as YArray<dynamic>;
+      final arr = ch.toArray();
 
       // No duplicates
       expect(arr.toSet().length, equals(arr.length),

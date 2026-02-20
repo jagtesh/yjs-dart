@@ -7,8 +7,19 @@ import 'abstract_type.dart';
 ///
 /// Mirrors: `YMap` in YMap.js
 class YMap<T> extends AbstractType<dynamic> {
+  Map<String, Object?> _prelimContent = {};
+
   YMap() : super() {
     legacyTypeRef = typeRefMap;
+  }
+
+  @override
+  void integrate(dynamic doc, dynamic item) {
+    super.integrate(doc, item);
+    _prelimContent.forEach((key, value) {
+      set(key, value as T);
+    });
+    _prelimContent = {};
   }
 
   /// Sets or updates an attribute.
@@ -18,7 +29,7 @@ class YMap<T> extends AbstractType<dynamic> {
         typeMapSet(tr, this, key, value);
       });
     } else {
-      warnPrematureAccess();
+      _prelimContent[key] = value;
     }
   }
 

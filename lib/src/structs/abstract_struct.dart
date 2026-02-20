@@ -19,6 +19,9 @@ abstract class AbstractStruct {
 
   AbstractStruct(this.id, this.length);
 
+  /// The ID of the last element in this struct.
+  ID get lastId => createID(id.client, id.clock + length - 1);
+
   /// Whether this struct has been deleted.
   bool get deleted;
 
