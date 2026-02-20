@@ -22,7 +22,7 @@ class RleEncoder {
       _count++;
     } else {
       if (_s != null) {
-        encoding.writeVarUint(_encoder, _count);
+        encoding.writeVarUint(_encoder, _count - 1);
       }
       _count = 1;
       _s = v;
@@ -32,7 +32,7 @@ class RleEncoder {
 
   Uint8List toUint8Array() {
     if (_s != null) {
-      encoding.writeVarUint(_encoder, _count);
+      encoding.writeVarUint(_encoder, _count - 1);
     }
     return encoding.toUint8Array(_encoder);
   }

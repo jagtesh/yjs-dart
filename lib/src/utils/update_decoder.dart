@@ -22,9 +22,14 @@ class RleDecoder {
   int read() {
     if (_count == 0) {
       _s = decoding.readUint8(_decoder);
-      _count = decoding.readVarUint(_decoder);
+      if (decoding.hasContent(_decoder)) {
+        _count = decoding.readVarUint(_decoder) - 1;
+      } else {
+        _count = 0xFFFFFFFF; // read forever
+      }
+    } else {
+      _count--;
     }
-    _count--;
     return _s!;
   }
 }

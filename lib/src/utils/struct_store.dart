@@ -206,8 +206,8 @@ dynamic getItemCleanEnd(dynamic transaction, dynamic store, ID id) {
   final struct = structs[index];
   if (id.clock != struct.id.clock + struct.length - 1 && struct is! GC) {
     final diff = id.clock - struct.id.clock + 1;
-    // ignore: avoid_dynamic_calls
-    (transaction as dynamic).splitStruct_(struct, diff);
+    final right = splitStruct(transaction as Transaction?, struct, diff);
+    structs.insert(index + 1, right);
   }
   return struct;
 }
