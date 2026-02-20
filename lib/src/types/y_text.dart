@@ -24,10 +24,19 @@ class YText extends AbstractType<dynamic> {
     if (text.isEmpty) return;
     if (doc != null) {
       doc!.transact((Transaction tr) {
-        typeListInsertGenerics(tr, this, index, [text]); // helper handles ContentString optimization?
-        if (attributes != null && attributes.isNotEmpty) {
-            format(index, text.length, attributes);
+        final currPos = ItemTextListPosition(null, start, 0, {});
+        var remaining = index;
+        while (remaining > 0 && currPos.right != null) {
+          if (!currPos.right!.deleted && currPos.right!.countable) {
+            if (remaining < currPos.right!.length) {
+              getItemCleanStart(tr,
+                  createID(currPos.right!.id.client, currPos.right!.id.clock + remaining));
+            }
+            remaining -= currPos.right!.length;
+          }
+          currPos.forward();
         }
+        insertContent(tr, this, currPos, ContentString(text), attributes ?? const {});
       });
     } else {
         warnPrematureAccess();

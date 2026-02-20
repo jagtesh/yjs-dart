@@ -1,6 +1,8 @@
 # Changelog
 
-## 1.1.11
+## 1.1.12
+
+-   **Fix**: `YText.insert` incorrectly dispatched plain strings as `ContentAny` generic array containers rather than true `ContentString` CRDT objects. This caused `YText.length` to evaluate to the number of insertions rather than the true string length, causing exponential string duplication bugs in Flutter/React TipTap synchronization where JS clients would aggressively rewrite invalid string generic instances. `YText.insert` is now properly hardwired to use `ContentString`.
 
 -   **Feature**: Added `_prelimContent` offline cache to `YMap` and `YArray` which allows nested insertion and setup of shared types before they are integrated into a `Doc`.
 -   **Fix**: Added a `lastId` getter to `AbstractStruct` and enhanced `Item` constructor resolution logic to safely typecast `parent` as `AbstractType`, preventing dynamic cast failures.
