@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.13
+
+-   **Fix**: Corrected RleEncoder and RleDecoder count-by-one encoding logic to perfectly map to JavaScript Yjs's precise wire format. Fixes a critical `RangeError (index): Index out of range` crash and sync halt that occurred when reading V2 updates with runs of `Skip` or `GC` structs from JS peers like Hocuspocus.
+-   **Fix**: Implemented missing "Phase 2" integration logic for `splitItem` inside `readAndApplyDeleteSet`. Remote deletions within `YText` are now correctly processed, resolving a bug where deleted text fragments duplicated/re-appeared when refreshing from persistence or applying updates across transaction boundaries.
 ## 1.1.12
 
 -   **Fix**: `YText.insert` incorrectly dispatched plain strings as `ContentAny` generic array containers rather than true `ContentString` CRDT objects. This caused `YText.length` to evaluate to the number of insertions rather than the true string length, causing exponential string duplication bugs in Flutter/React TipTap synchronization where JS clients would aggressively rewrite invalid string generic instances. `YText.insert` is now properly hardwired to use `ContentString`.
