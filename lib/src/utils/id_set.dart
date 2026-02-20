@@ -10,6 +10,8 @@ import '../lib0/decoding.dart' as decoding;
 import '../structs/abstract_struct.dart';
 import '../utils/id.dart';
 import '../utils/update_encoder.dart';
+import '../structs/item.dart';
+import '../utils/transaction.dart';
 import '../utils/struct_store.dart' as struct_store;
 
 /// A single contiguous range of IDs: [clock, clock+len).
@@ -603,12 +605,18 @@ Uint8List? readAndApplyDeleteSet(
         }
         var index = findIndexSS(structs, clock);
         var struct = structs[index];
-        // Split if needed — full implementation in Phase 2 (requires splitItem)
+        if (!struct.deleted && struct.id.clock < clock) {
+          structs.insert(index + 1, splitItem(transaction as Transaction, struct as Item, clock - struct.id.clock));
+          index++; // increase index because we decreased length of struct
+        }
         while (index < structs.length) {
           struct = structs[index++];
           if (struct.id.clock < clockEnd) {
             if (!struct.deleted) {
-              // struct.delete(transaction) — Phase 2
+              if (clockEnd < struct.id.clock + struct.length) {
+                structs.insert(index, splitItem(transaction as Transaction, struct as Item, clockEnd - struct.id.clock));
+              }
+              (struct as Item).delete(transaction as Transaction);
             }
           } else {
             break;

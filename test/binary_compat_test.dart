@@ -49,35 +49,35 @@ void main() {
       final f = fixtures['array_insert'];
       final doc = Doc(DocOpts(clientID: 1));
       final arr = doc.getArray('arr');
-      arr.insert(0, ['a', 'b', 'c']);
+      arr!.insert(0, ['a', 'b', 'c']);
       expect(encodeStateVector(doc), toBytes(f['sv'] as List));
       expect(encodeStateAsUpdate(doc), toBytes(f['update'] as List));
-      expect(arr.toArray(), f['content']);
+      expect(arr!.toArray(), f['content']);
     });
 
     test('array push', () {
       final f = fixtures['array_push'];
       final doc = Doc(DocOpts(clientID: 1));
       final arr = doc.getArray('arr');
-      arr.insert(0, ['a', 'b', 'c']);
+      arr!.insert(0, ['a', 'b', 'c']);
       final svBefore = encodeStateVector(doc);
-      arr.push([42]);
+      arr!.push([42]);
       expect(encodeStateVector(doc), toBytes(f['sv'] as List));
       expect(encodeStateAsUpdate(doc), toBytes(f['update'] as List));
       // Incremental update (diff from svBefore)
       expect(encodeStateAsUpdate(doc, svBefore), toBytes(f['inc_update'] as List));
-      expect(arr.toArray(), f['content']);
+      expect(arr!.toArray(), f['content']);
     });
 
     test('array delete', () {
       final f = fixtures['array_delete'];
       final doc = Doc(DocOpts(clientID: 1));
       final arr = doc.getArray('arr');
-      arr.insert(0, ['a', 'b', 'c']);
+      arr!.insert(0, ['a', 'b', 'c']);
       arr.delete(1, 1); // delete 'b'
       expect(encodeStateVector(doc), toBytes(f['sv'] as List));
       expect(encodeStateAsUpdate(doc), toBytes(f['update'] as List));
-      expect(arr.toArray(), f['content']);
+      expect(arr!.toArray(), f['content']);
     });
 
 
@@ -85,23 +85,23 @@ void main() {
       final f = fixtures['array_insert_at'];
       final doc = Doc(DocOpts(clientID: 1));
       final arr = doc.getArray('arr');
-      arr.insert(0, ['a', 'b', 'c']);
-      arr.insert(1, ['x']); // insert 'x' after 'a'
+      arr!.insert(0, ['a', 'b', 'c']);
+      arr!.insert(1, ['x']); // insert 'x' after 'a'
       expect(encodeStateVector(doc), toBytes(f['sv'] as List));
       expect(encodeStateAsUpdate(doc), toBytes(f['update'] as List));
-      expect(arr.toArray(), f['content']);
+      expect(arr!.toArray(), f['content']);
     });
 
     test('map attributes', () {
       final f = fixtures['map_attrs'];
       final doc = Doc(DocOpts(clientID: 1));
       final map = doc.getMap('map');
-      map.set('key1', 'hello');
-      map.set('key2', 123);
-      map.set('flag', true);
+      map!.set('key1', 'hello');
+      map!.set('key2', 123);
+      map!.set('flag', true);
       expect(encodeStateVector(doc), toBytes(f['sv'] as List));
       expect(encodeStateAsUpdate(doc), toBytes(f['update'] as List));
-      expect(map.toMap(), f['attrs']);
+      expect(map!.toMap(), f['attrs']);
     });
 
     test('mixed array + map', () {
@@ -109,12 +109,12 @@ void main() {
       final doc = Doc(DocOpts(clientID: 1));
       final arr = doc.getArray('arr');
       final map = doc.getMap('map');
-      arr.insert(0, [1, 2, 3]);
-      map.set('name', 'test');
+      arr!.insert(0, [1, 2, 3]);
+      map!.set('name', 'test');
       expect(encodeStateVector(doc), toBytes(f['sv'] as List));
       expect(encodeStateAsUpdate(doc), toBytes(f['update'] as List));
-      expect(arr.toArray(), f['arr_content']);
-      expect(map.toMap(), f['map_attrs']);
+      expect(arr!.toArray(), f['arr_content']);
+      expect(map!.toMap(), f['map_attrs']);
     });
 
     test('nested type', () {
@@ -122,8 +122,8 @@ void main() {
       final doc = Doc(DocOpts(clientID: 1));
       final map = doc.getMap('map');
       final inner = YXmlFragment();
-      map.set('child', inner);
-      (map.get('child') as YXmlFragment).setAttribute('deep', 'value');
+      map!.set('child', inner);
+      (map!.get('child') as YXmlFragment).setAttribute('deep', 'value');
       expect(encodeStateVector(doc), toBytes(f['sv'] as List));
       expect(encodeStateAsUpdate(doc), toBytes(f['update'] as List));
     });
@@ -132,10 +132,10 @@ void main() {
       final f = fixtures['content_types'];
       final doc = Doc(DocOpts(clientID: 1));
       final arr = doc.getArray('arr');
-      arr.insert(0, ['text', 42, true, false, null, 3.14]);
+      arr!.insert(0, ['text', 42, true, false, null, 3.14]);
       expect(encodeStateVector(doc), toBytes(f['sv'] as List));
       expect(encodeStateAsUpdate(doc), toBytes(f['update'] as List));
-      expect(arr.toArray(), f['content']);
+      expect(arr!.toArray(), f['content']);
     });
   });
 
@@ -151,7 +151,7 @@ void main() {
       doc.getMap('map');
       applyUpdate(doc, toBytes(f['update'] as List));
       final map = doc.getMap('map');
-      final child = map.get('child');
+      final child = map!.get('child');
       expect(child, isA<YXmlFragment>());
       expect((child as YXmlFragment).getAttribute('deep'), f['deep_value']);
     });
@@ -161,7 +161,7 @@ void main() {
       doc.getArray('arr');
       applyUpdate(doc, toBytes(f['update'] as List));
       final arr = doc.getArray('arr');
-      expect(arr.toArray(), f['content']);
+      expect(arr!.toArray(), f['content']);
     });
 
     test('apply JS array delete update', () {
@@ -170,7 +170,7 @@ void main() {
       doc.getArray('arr');
       applyUpdate(doc, toBytes(f['update'] as List));
       final arr = doc.getArray('arr');
-      expect(arr.toArray(), f['content']);
+      expect(arr!.toArray(), f['content']);
     });
 
     test('apply JS array insert-at update', () {
@@ -179,7 +179,7 @@ void main() {
       doc.getArray('arr');
       applyUpdate(doc, toBytes(f['update'] as List));
       final arr = doc.getArray('arr');
-      expect(arr.toArray(), f['content']);
+      expect(arr!.toArray(), f['content']);
     });
 
     test('apply JS map attributes update', () {
@@ -188,7 +188,7 @@ void main() {
       doc.getMap('map');
       applyUpdate(doc, toBytes(f['update'] as List));
       final map = doc.getMap('map');
-      expect(map.toMap(), f['attrs']);
+      expect(map!.toMap(), f['attrs']);
     });
 
     test('apply JS mixed update', () {
@@ -199,8 +199,8 @@ void main() {
       applyUpdate(doc, toBytes(f['update'] as List));
       final arr = doc.getArray('arr');
       final map = doc.getMap('map');
-      expect(arr.toArray(), f['arr_content']);
-      expect(map.toMap(), f['map_attrs']);
+      expect(arr!.toArray(), f['arr_content']);
+      expect(map!.toMap(), f['map_attrs']);
     });
 
 
@@ -210,7 +210,7 @@ void main() {
       doc.getArray('arr');
       applyUpdate(doc, toBytes(f['update'] as List));
       final arr = doc.getArray('arr');
-      expect(arr.toArray(), f['content']);
+      expect(arr!.toArray(), f['content']);
     });
 
     test('apply JS incremental update', () {
@@ -225,7 +225,7 @@ void main() {
       // Then apply incremental update
       applyUpdate(doc, toBytes(f2['inc_update'] as List));
       final arr = doc.getArray('arr');
-      expect(arr.toArray(), f2['content']);
+      expect(arr!.toArray(), f2['content']);
     });
   });
 
@@ -243,7 +243,7 @@ void main() {
       // State vector should match (same content, different clientID context)
       expect(encodeStateVector(doc), toBytes(f['doc2_sv_after'] as List));
       final arr = doc.getArray('arr');
-      expect(arr.toArray(), f['doc2_content']);
+      expect(arr!.toArray(), f['doc2_content']);
     });
 
     test('bidirectional sync produces same content', () {
@@ -254,18 +254,18 @@ void main() {
       final arr1 = doc1.getArray('arr');
       doc2.getArray('arr');
 
-      arr1.insert(0, ['from_doc1']);
+      arr1!.insert(0, ['from_doc1']);
       applyUpdate(doc2, encodeStateAsUpdate(doc1));
 
       final arr2 = doc2.getArray('arr');
-      arr2.push(['from_doc2']);
+      arr2!.push(['from_doc2']);
 
       final sv1 = encodeStateVector(doc1);
       applyUpdate(doc1, encodeStateAsUpdate(doc2, sv1));
 
       // Both docs should have same content as JS reference
-      expect(arr1.toArray(), f['doc1_content']);
-      expect(arr2.toArray(), f['doc2_content']);
+      expect(arr1!.toArray(), f['doc1_content']);
+      expect(arr2!.toArray(), f['doc2_content']);
 
       // State vectors should match
       expect(encodeStateVector(doc1), encodeStateVector(doc2));
