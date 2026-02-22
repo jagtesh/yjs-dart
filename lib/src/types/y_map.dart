@@ -1,5 +1,7 @@
 library;
 
+import '../structs/item.dart';
+import '../utils/doc.dart';
 import '../utils/transaction.dart';
 import 'abstract_type.dart';
 
@@ -14,7 +16,7 @@ class YMap<T> extends AbstractType<dynamic> {
   }
 
   @override
-  void integrate(dynamic doc, dynamic item) {
+  void integrate(Doc doc, Item? item) {
     super.integrate(doc, item);
     _prelimContent.forEach((key, value) {
       set(key, value as T);
